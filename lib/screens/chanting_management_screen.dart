@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/chanting.dart';
 import '../services/database_service.dart';
 import '../widgets/chanting_form.dart';
+import 'chanting_detail_screen.dart';
 
 class ChantingManagementScreen extends StatefulWidget {
   const ChantingManagementScreen({super.key});
@@ -292,24 +293,7 @@ class _ChantingManagementScreenState extends State<ChantingManagementScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 4),
-            Text(
-              chanting.content,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            if (chanting.pronunciation != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                '注音: ${chanting.pronunciation}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.blue.shade600,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-            ],
+            _buildManagementContentWithPronunciation(chanting),
             const SizedBox(height: 4),
             Row(
               children: [
@@ -375,139 +359,214 @@ class _ChantingManagementScreenState extends State<ChantingManagementScreen>
     );
   }
 
+  Widget _buildManagementContentWithPronunciation(Chanting chanting) {
+    // 将内容按行分割
+    final contentLines = chanting.content.split('\n');
+    final pronunciationLines = chanting.pronunciation?.split('\n') ?? [];
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 显示内容，最多2行
+        for (int i = 0; i < contentLines.length && i < 2; i++) ...[
+          if (contentLines[i].trim().isNotEmpty) ...[
+            _buildCharacterWithPronunciation(
+              contentLines[i].trim(),
+              i < pronunciationLines.length ? pronunciationLines[i].trim() : '',
+              14, // 汉字字体大小
+              12, // 注音字体大小
+              maxLength: 8, // 限制显示字符数
+            ),
+            const SizedBox(height: 4),
+          ],
+        ],
+        // 如果内容被截断，显示省略号
+        if (contentLines.length > 2)
+          Text(
+            '...',
+            style: TextStyle(
+              color: Colors.grey.shade600,
+              fontSize: 12,
+            ),
+          ),
+      ],
+    );
+  }
+
+
+  // 构建字符级别对应的普通文本显示
+  Widget _buildCharacterWithPronunciation(
+    String content, 
+    String pronunciation, 
+    double contentFontSize, 
+    double pronunciationFontSize,
+    {int? maxLength}
+  ) {
+    if (content.isEmpty) return const SizedBox.shrink();
+    
+    // 如果有长度限制，截取内容
+    String displayContent = content;
+    String displayPronunciation = pronunciation;
+    
+    if (maxLength != null && content.length > maxLength) {
+      displayContent = content.substring(0, maxLength) + '...';
+      // 对应地截取注音
+      if (pronunciation.isNotEmpty) {
+        final pronunciationChars = pronunciation.split(' ');
+        if (pronunciationChars.length >= maxLength) {
+          displayPronunciation = pronunciationChars.take(maxLength).join(' ') + '...';
+        }
+      }
+    }
+    
+    // 分离汉字和注音
+    final contentChars = displayContent.split('');
+    final pronunciationChars = displayPronunciation.split(' ');
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 汉字行 - 使用Wrap来避免溢出
+        Wrap(
+          children: contentChars.asMap().entries.map((entry) {
+            final char = entry.value;
+            final index = entry.key;
+            if (char == '.' && index < contentChars.length - 3) {
+              // 如果是省略号的一部分，特殊处理
+              return Text(char, style: TextStyle(fontSize: contentFontSize));
+            }
+            return Container(
+              width: 24, // 固定宽度确保对齐
+              alignment: Alignment.center,
+              child: Text(
+                char,
+                style: TextStyle(fontSize: contentFontSize),
+                textAlign: TextAlign.center,
+              ),
+            );
+          }).toList(),
+        ),
+        // 注音行
+        if (pronunciation.isNotEmpty) ...[
+          const SizedBox(height: 2),
+          Wrap(
+            children: contentChars.asMap().entries.map((entry) {
+              final index = entry.key;
+              final char = entry.value;
+              
+              // 如果是省略号，不显示注音
+              if (char == '.' && index < contentChars.length - 3) {
+                return Container(
+                  width: 24,
+                  child: Text(
+                    '',
+                    style: TextStyle(fontSize: pronunciationFontSize),
+                    textAlign: TextAlign.center,
+                  ),
+                );
+              }
+              
+              // 获取对应的注音
+              String pinyin = '';
+              if (index < pronunciationChars.length) {
+                pinyin = pronunciationChars[index];
+              }
+              
+              return Container(
+                width: 24, // 与汉字相同的宽度
+                alignment: Alignment.center,
+                child: Text(
+                  pinyin,
+                  style: TextStyle(
+                    fontSize: pronunciationFontSize,
+                    color: Colors.blue.shade600,
+                    fontStyle: FontStyle.italic,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ],
+    );
+  }
+
+  // 构建字符级别对应的可选择文本显示
+  Widget _buildSelectableCharacterWithPronunciation(
+    String content, 
+    String pronunciation, 
+    double contentFontSize, 
+    double pronunciationFontSize
+  ) {
+    if (content.isEmpty) return const SizedBox.shrink();
+    
+    // 分离汉字和注音
+    final contentChars = content.split('');
+    final pronunciationChars = pronunciation.split(' ');
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 汉字行 - 使用固定宽度的容器来确保对齐
+        Wrap(
+          children: contentChars.asMap().entries.map((entry) {
+            final char = entry.value;
+            return Container(
+              width: 24, // 固定宽度确保对齐
+              child: SelectableText(
+                char,
+                style: TextStyle(fontSize: contentFontSize),
+                textAlign: TextAlign.center,
+              ),
+            );
+          }).toList(),
+        ),
+        // 注音行
+        if (pronunciation.isNotEmpty) ...[
+          const SizedBox(height: 2),
+          Wrap(
+            children: contentChars.asMap().entries.map((entry) {
+              final index = entry.key;
+              
+              // 获取对应的注音
+              String pinyin = '';
+              if (index < pronunciationChars.length) {
+                pinyin = pronunciationChars[index];
+              }
+              
+              return Container(
+                width: 24, // 与汉字相同的宽度
+                child: SelectableText(
+                  pinyin,
+                  style: TextStyle(
+                    fontSize: pronunciationFontSize,
+                    color: Colors.blue.shade600,
+                    fontStyle: FontStyle.italic,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ],
+    );
+  }
+
   String _formatDate(DateTime date) {
     return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 
   void _showChantingDetails(Chanting chanting) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(
-              chanting.type == ChantingType.buddhaNam
-                  ? Icons.self_improvement
-                  : Icons.book,
-              color: chanting.type == ChantingType.buddhaNam
-                  ? Colors.blue.shade600
-                  : Colors.green.shade600,
-            ),
-            const SizedBox(width: 8),
-            Expanded(child: Text(chanting.title)),
-          ],
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => ChantingDetailScreen(
+          chanting: chanting,
+          showChantingButton: false, // 管理页面不显示念诵按钮
         ),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // 内容
-              Text(
-                '内容：',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[700],
-                ),
-              ),
-              const SizedBox(height: 8),
-              SelectableText(
-                chanting.content,
-                style: const TextStyle(fontSize: 16),
-              ),
-              
-              // 注音
-              if (chanting.pronunciation != null) ...[
-                const SizedBox(height: 16),
-                Text(
-                  '注音：',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[700],
-                  ),
-                ),
-                const SizedBox(height: 8),
-                SelectableText(
-                  chanting.pronunciation!,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.blue.shade600,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ],
-              
-              // 类型信息
-              const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: (chanting.type == ChantingType.buddhaNam 
-                      ? Colors.blue 
-                      : Colors.green).shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: (chanting.type == ChantingType.buddhaNam 
-                        ? Colors.blue 
-                        : Colors.green).shade200,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      chanting.type == ChantingType.buddhaNam
-                          ? Icons.self_improvement
-                          : Icons.book,
-                      color: chanting.type == ChantingType.buddhaNam
-                          ? Colors.blue.shade600
-                          : Colors.green.shade600,
-                      size: 16,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      chanting.type == ChantingType.buddhaNam ? '佛号' : '经文',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: (chanting.type == ChantingType.buddhaNam 
-                            ? Colors.blue 
-                            : Colors.green).shade800,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    if (chanting.isBuiltIn) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.shade100,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          '内置',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.orange.shade700,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('关闭'),
-          ),
-        ],
       ),
     );
   }
