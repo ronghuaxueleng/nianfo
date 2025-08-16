@@ -83,12 +83,7 @@ class _ChantingDetailScreenState extends State<ChantingDetailScreen> {
         _todayCount = newCount;
       });
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${widget.chanting.title} +1，今日已念 $newCount 次'),
-          duration: const Duration(seconds: 1),
-        ),
-      );
+      // 移除了弹出提示框，右上角数字会直接更新
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -198,75 +193,119 @@ class _ChantingDetailScreenState extends State<ChantingDetailScreen> {
               children: [
                 // 标题信息卡片
                 Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+                  child: Stack(
+                    children: [
+                      // 主要内容
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: (widget.chanting.type == ChantingType.buddhaNam 
-                                    ? Colors.blue 
-                                    : Colors.green).shade100,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                widget.chanting.type == ChantingType.buddhaNam ? '佛号' : '经文',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: (widget.chanting.type == ChantingType.buddhaNam 
-                                      ? Colors.blue 
-                                      : Colors.green).shade800,
-                                  fontWeight: FontWeight.bold,
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: (widget.chanting.type == ChantingType.buddhaNam 
+                                        ? Colors.blue 
+                                        : Colors.green).shade100,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    widget.chanting.type == ChantingType.buddhaNam ? '佛号' : '经文',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: (widget.chanting.type == ChantingType.buddhaNam 
+                                          ? Colors.blue 
+                                          : Colors.green).shade800,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 ),
+                                if (widget.chanting.isBuiltIn) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange.shade100,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      '内置',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.orange.shade700,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              widget.chanting.title,
+                              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                            if (widget.chanting.isBuiltIn) ...[
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
+                            const SizedBox(height: 8),
+                            Text(
+                              '创建时间: ${_formatDate(widget.chanting.createdAt)}',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // 右上角今日念诵数量（仅显示）
+                      if (!_isLoading && widget.chanting.id != null)
+                        Positioned(
+                          top: 12,
+                          right: 12,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.shade600,
+                              borderRadius: BorderRadius.circular(15),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.15),
+                                  blurRadius: 3,
+                                  offset: const Offset(0, 2),
                                 ),
-                                decoration: BoxDecoration(
-                                  color: Colors.orange.shade100,
-                                  borderRadius: BorderRadius.circular(8),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.today,
+                                  size: 14,
+                                  color: Colors.white,
                                 ),
-                                child: Text(
-                                  '内置',
-                                  style: TextStyle(
+                                const SizedBox(width: 4),
+                                Text(
+                                  '$_todayCount',
+                                  style: const TextStyle(
+                                    color: Colors.white,
                                     fontSize: 12,
-                                    color: Colors.orange.shade700,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                              ),
-                            ],
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          widget.chanting.title,
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
+                              ],
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '创建时间: ${_formatDate(widget.chanting.createdAt)}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
+                    ],
                   ),
                 ),
 

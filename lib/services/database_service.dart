@@ -3,6 +3,7 @@ import 'package:path/path.dart';
 import '../models/user.dart';
 import '../models/dedication.dart';
 import '../models/chanting.dart';
+import '../models/chanting_record.dart';
 import '../models/dedication_template.dart';
 import '../models/daily_stats.dart';
 
@@ -24,7 +25,7 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 6,
+      version: 7,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -89,6 +90,17 @@ class DatabaseService {
         updated_at TEXT,
         UNIQUE(chanting_id, date),
         FOREIGN KEY (chanting_id) REFERENCES chantings (id)
+      )
+    ''');
+
+    // 创建念诵记录表
+    await db.execute('''
+      CREATE TABLE chanting_records (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        chanting_id INTEGER NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT,
+        FOREIGN KEY (chanting_id) REFERENCES chantings (id) ON DELETE CASCADE
       )
     ''');
 
@@ -166,6 +178,19 @@ class DatabaseService {
       // 添加逻辑删除字段
       await db.execute('''
         ALTER TABLE chantings ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0
+      ''');
+    }
+    
+    if (oldVersion < 7) {
+      // 创建念诵记录表
+      await db.execute('''
+        CREATE TABLE chanting_records (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          chanting_id INTEGER NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT,
+          FOREIGN KEY (chanting_id) REFERENCES chantings (id) ON DELETE CASCADE
+        )
       ''');
     }
   }
@@ -365,6 +390,62 @@ class DatabaseService {
       'SELECT COUNT(*) as count FROM chantings WHERE is_built_in = 1 AND is_deleted = 1'
     );
     return result.first['count'] as int;
+  }
+
+  // ChantingRecord operations
+  Future<ChantingRecord> createChantingRecord(int chantingId) async {
+    final db = await instance.database;
+    final record = ChantingRecord(
+      chantingId: chantingId,
+      createdAt: DateTime.now(),
+    );
+    final id = await db.insert('chanting_records', record.toMap());
+    return record.copyWith(id: id);
+  }
+
+  Future<List<ChantingRecordWithDetails>> getChantingRecordsWithDetails() async {
+    final db = await instance.database;
+    final result = await db.rawQuery('''
+      SELECT cr.*, c.title, c.content, c.pronunciation, c.type, c.is_built_in, c.created_at as chanting_created_at
+      FROM chanting_records cr
+      INNER JOIN chantings c ON cr.chanting_id = c.id
+      WHERE c.is_deleted = 0
+      ORDER BY cr.created_at DESC
+    ''');
+    return result.map((map) => ChantingRecordWithDetails.fromMap(map)).toList();
+  }
+
+  Future<List<ChantingRecordWithDetails>> getChantingRecordsByType(ChantingType type) async {
+    final db = await instance.database;
+    final result = await db.rawQuery('''
+      SELECT cr.*, c.title, c.content, c.pronunciation, c.type, c.is_built_in, c.created_at as chanting_created_at
+      FROM chanting_records cr
+      INNER JOIN chantings c ON cr.chanting_id = c.id
+      WHERE c.type = ? AND c.is_deleted = 0
+      ORDER BY cr.created_at DESC
+    ''', [type.toString().split('.').last]);
+    return result.map((map) => ChantingRecordWithDetails.fromMap(map)).toList();
+  }
+
+  Future<void> deleteChantingRecord(int recordId) async {
+    final db = await instance.database;
+    
+    // 首先获取记录信息，获取对应的chanting_id
+    final recordQuery = await db.query(
+      'chanting_records',
+      where: 'id = ?',
+      whereArgs: [recordId],
+    );
+    
+    if (recordQuery.isNotEmpty) {
+      final chantingId = recordQuery.first['chanting_id'] as int;
+      
+      // 删除念诵记录
+      await db.delete('chanting_records', where: 'id = ?', whereArgs: [recordId]);
+      
+      // 删除对应的每日统计数据
+      await db.delete('daily_stats', where: 'chanting_id = ?', whereArgs: [chantingId]);
+    }
   }
 
   // Daily Stats operations

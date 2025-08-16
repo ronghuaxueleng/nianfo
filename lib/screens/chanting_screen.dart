@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/chanting.dart';
+import '../models/chanting_record.dart';
 import '../models/daily_stats.dart';
 import '../services/database_service.dart';
 import 'chanting_detail_screen.dart';
@@ -14,8 +15,8 @@ class ChantingScreen extends StatefulWidget {
 class _ChantingScreenState extends State<ChantingScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  List<Chanting> _buddhaNams = [];
-  List<Chanting> _sutras = [];
+  List<ChantingRecordWithDetails> _buddhaNameRecords = [];
+  List<ChantingRecordWithDetails> _sutraRecords = [];
   Map<int, int> _todayCounts = {}; // 今日计数缓存
   bool _isLoading = true;
 
@@ -38,23 +39,22 @@ class _ChantingScreenState extends State<ChantingScreen>
     });
 
     try {
-      final buddhaNams = await DatabaseService.instance
-          .getChantingsByType(ChantingType.buddhaNam);
-      final sutras = await DatabaseService.instance
-          .getChantingsByType(ChantingType.sutra);
+      final buddhaNameRecords = await DatabaseService.instance
+          .getChantingRecordsByType(ChantingType.buddhaNam);
+      final sutraRecords = await DatabaseService.instance
+          .getChantingRecordsByType(ChantingType.sutra);
 
       // 加载今日计数
       final Map<int, int> todayCounts = {};
-      for (final chanting in [...buddhaNams, ...sutras]) {
-        if (chanting.id != null) {
-          final count = await DatabaseService.instance.getTodayCount(chanting.id!);
-          todayCounts[chanting.id!] = count;
-        }
+      for (final record in [...buddhaNameRecords, ...sutraRecords]) {
+        final chantingId = record.chanting.id!;
+        final count = await DatabaseService.instance.getTodayCount(chantingId);
+        todayCounts[chantingId] = count;
       }
 
       setState(() {
-        _buddhaNams = buddhaNams;
-        _sutras = sutras;
+        _buddhaNameRecords = buddhaNameRecords;
+        _sutraRecords = sutraRecords;
         _todayCounts = todayCounts;
         _isLoading = false;
       });
@@ -79,12 +79,7 @@ class _ChantingScreenState extends State<ChantingScreen>
         _todayCounts[chanting.id!] = newCount;
       });
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${chanting.title} +1，今日已念 $newCount 次'),
-          duration: const Duration(seconds: 1),
-        ),
-      );
+      // 移除了弹出提示框，直接更新右上角数字
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -190,7 +185,7 @@ class _ChantingScreenState extends State<ChantingScreen>
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '选择${currentType == ChantingType.buddhaNam ? '佛号' : '经文'}',
+                    '添加${currentType == ChantingType.buddhaNam ? '佛号' : '经文'}到念诵记录',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -271,7 +266,7 @@ class _ChantingScreenState extends State<ChantingScreen>
                       ),
                       onTap: () async {
                         Navigator.of(context).pop();
-                        await _incrementCount(chanting);
+                        await _addChantingRecord(chanting);
                       },
                     ),
                   );
@@ -282,6 +277,22 @@ class _ChantingScreenState extends State<ChantingScreen>
         ),
       ),
     );
+  }
+
+  Future<void> _addChantingRecord(Chanting chanting) async {
+    try {
+      await DatabaseService.instance.createChantingRecord(chanting.id!);
+      _loadChantings();
+      
+      // 移除了成功提示
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('添加失败，请重试'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -308,17 +319,23 @@ class _ChantingScreenState extends State<ChantingScreen>
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('💙 快速选择念诵'),
+                      Text('📿 念诵记录说明'),
                       SizedBox(height: 8),
-                      Text('  从所有佛号经文中快速选择并念诵+1'),
+                      Text('  从个人中心选择佛号经文，添加到念诵记录进行日常修行'),
                       SizedBox(height: 12),
-                      Text('💡 使用说明：'),
+                      Text('💡 使用方法：'),
                       SizedBox(height: 4),
-                      Text('  • 点击右下角蓝色按钮快速选择念诵'),
-                      Text('  • 在个人中心"佛号经文管理"添加新内容'),
-                      Text('  • 点击列表中的"念诵+1"按钮记录'),
+                      Text('  • 点击右下角➕按钮，从个人中心选择添加'),
+                      Text('  • 右上角数字显示今日念诵次数'),
+                      Text('  • 点击"设置今日念诵次数"手动调整'),
                       Text('  • 点击标题查看详细内容和注音'),
-                      Text('  • 支持设置每日念诵次数'),
+                      Text('  • 菜单中可删除不需要的念诵记录'),
+                      SizedBox(height: 8),
+                      Text('🔗 数据关联：'),
+                      SizedBox(height: 4),
+                      Text('  • 念诵记录关联个人中心的佛号经文'),
+                      Text('  • 删除记录不影响个人中心的原始数据'),
+                      Text('  • 删除原始经文会同时删除相关记录'),
                     ],
                   ),
                   actions: [
@@ -340,12 +357,12 @@ class _ChantingScreenState extends State<ChantingScreen>
           : TabBarView(
               controller: _tabController,
               children: [
-                _buildChantingList(_buddhaNams, ChantingType.buddhaNam),
-                _buildChantingList(_sutras, ChantingType.sutra),
+                _buildChantingRecordList(_buddhaNameRecords, ChantingType.buddhaNam),
+                _buildChantingRecordList(_sutraRecords, ChantingType.sutra),
               ],
             ),
       floatingActionButton: Tooltip(
-        message: '快速选择念诵',
+        message: '添加念诵记录',
         child: FloatingActionButton(
           onPressed: _showQuickSelectDialog,
           backgroundColor: Colors.blue.shade600,
@@ -355,32 +372,34 @@ class _ChantingScreenState extends State<ChantingScreen>
     );
   }
 
-  Widget _buildChantingList(List<Chanting> chantings, ChantingType type) {
-    if (chantings.isEmpty) {
+  Widget _buildChantingRecordList(List<ChantingRecordWithDetails> records, ChantingType type) {
+    if (records.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              type == ChantingType.buddhaNam
-                  ? Icons.self_improvement
+              type == ChantingType.buddhaNam 
+                  ? Icons.self_improvement 
                   : Icons.book,
               size: 64,
-              color: Colors.grey,
+              color: Colors.grey.shade400,
             ),
             const SizedBox(height: 16),
             Text(
-              type == ChantingType.buddhaNam ? '还没有佛号' : '还没有经文',
-              style: const TextStyle(
+              '还没有${type == ChantingType.buddhaNam ? '佛号' : '经文'}念诵记录',
+              style: TextStyle(
                 fontSize: 18,
-                color: Colors.grey,
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w500,
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
-              '点击右下角按钮添加',
+            Text(
+              '点击右下角的 + 号从个人中心添加',
               style: TextStyle(
-                color: Colors.grey,
+                fontSize: 14,
+                color: Colors.grey.shade500,
               ),
             ),
           ],
@@ -390,135 +409,163 @@ class _ChantingScreenState extends State<ChantingScreen>
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: chantings.length,
+      itemCount: records.length,
       itemBuilder: (context, index) {
-        final chanting = chantings[index];
+        final record = records[index];
+        final chanting = record.chanting;
+        final todayCount = _todayCounts[chanting.id] ?? 0;
         
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
-          child: Column(
+          child: Stack(
             children: [
-              ListTile(
-                leading: Stack(
-                  children: [
-                    Icon(
-                      chanting.type == ChantingType.buddhaNam
-                          ? Icons.self_improvement
-                          : Icons.book,
-                      color: Colors.orange,
-                      size: 32,
-                    ),
-                    if (chanting.isBuiltIn)
-                      Positioned(
-                        right: 0,
-                        bottom: 0,
-                        child: Container(
-                          width: 12,
-                          height: 12,
-                          decoration: const BoxDecoration(
-                            color: Colors.green,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                title: Text(
-                  chanting.title,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 4),
-                    _buildContentWithPronunciation(chanting),
-                    const SizedBox(height: 4),
-                    Row(
+              // 主要内容
+              Column(
+                children: [
+                  ListTile(
+                    leading: Stack(
                       children: [
+                        Icon(
+                          chanting.type == ChantingType.buddhaNam
+                              ? Icons.self_improvement
+                              : Icons.book,
+                          color: Colors.orange,
+                          size: 32,
+                        ),
                         if (chanting.isBuiltIn)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.green.shade100,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              '内置',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.green.shade700,
-                                fontWeight: FontWeight.bold,
+                          Positioned(
+                            right: 0,
+                            bottom: 0,
+                            child: Container(
+                              width: 12,
+                              height: 12,
+                              decoration: const BoxDecoration(
+                                color: Colors.green,
+                                shape: BoxShape.circle,
                               ),
                             ),
                           ),
-                        if (chanting.isBuiltIn) const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            '创建时间: ${_formatDate(chanting.createdAt)}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
+                      ],
+                    ),
+                    title: Text(
+                      chanting.title,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 4),
+                        _buildContentWithPronunciation(chanting),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            if (chanting.isBuiltIn)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.shade100,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '内置',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.green.shade700,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            if (chanting.isBuiltIn) const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '添加时间: ${_formatDate(record.record.createdAt)}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                            overflow: TextOverflow.ellipsis,
+                          ],
+                        ),
+                      ],
+                    ),
+                    trailing: PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'detail') {
+                          _showChantingDetails(chanting);
+                        } else if (value == 'delete') {
+                          _deleteRecordDialog(record);
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'detail',
+                          child: Row(
+                            children: [
+                              Icon(Icons.visibility, size: 20),
+                              SizedBox(width: 8),
+                              Text('查看详情'),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete, size: 20, color: Colors.red),
+                              SizedBox(width: 8),
+                              Text('删除记录', style: TextStyle(color: Colors.red)),
+                            ],
                           ),
                         ),
                       ],
                     ),
-                  ],
-                ),
-                trailing: PopupMenuButton<String>(
-                  onSelected: (value) {
-                    if (value == 'count') {
-                      _showCountDialog(chanting);
-                    } else if (value == 'manage') {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('请到个人中心 > 佛号经文管理进行编辑和删除操作'),
-                          backgroundColor: Colors.blue,
-                        ),
-                      );
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(
-                      value: 'count',
-                      child: Text('设置次数'),
-                    ),
-                    const PopupMenuItem(
-                      value: 'manage',
-                      child: Text('管理内容'),
-                    ),
-                  ],
-                ),
-                onTap: () {
-                  _showChantingDetails(chanting);
-                },
-              ),
-              // 计数按钮区域
-              Container(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () => _incrementCount(chanting),
-                        icon: const Icon(Icons.add, size: 18),
-                        label: const Text('念诵 +1'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange.shade600,
-                          foregroundColor: Colors.white,
-                        ),
+                    onTap: () {
+                      _showChantingDetails(chanting);
+                    },
+                  ),
+                  // 设置次数按钮区域
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        onPressed: () => _showCountDialog(chanting),
+                        child: const Text('设置今日念诵次数'),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    OutlinedButton(
-                      onPressed: () => _showCountDialog(chanting),
-                      child: const Text('设置次数'),
+                  ),
+                ],
+              ),
+              // 右上角今日次数（仅显示）
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade600,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 2,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  child: Text(
+                    '$todayCount',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
                     ),
-                  ],
+                  ),
                 ),
               ),
             ],
@@ -526,6 +573,47 @@ class _ChantingScreenState extends State<ChantingScreen>
         );
       },
     );
+  }
+
+  Future<void> _deleteRecordDialog(ChantingRecordWithDetails record) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('确认删除'),
+        content: Text('确定要删除念诵记录"${record.chanting.title}"吗？\n\n将同时删除：\n• 念诵记录\n• 相关的念诵次数统计\n\n这不会删除个人中心的原始经文。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('删除', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && record.record.id != null) {
+      try {
+        await DatabaseService.instance.deleteChantingRecord(record.record.id!);
+        
+        // 清除本地计数缓存
+        _todayCounts.remove(record.chanting.id);
+        
+        // 重新加载数据
+        _loadChantings();
+        
+        // 移除了成功提示
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('删除失败，请重试'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildContentWithPronunciation(Chanting chanting) {
