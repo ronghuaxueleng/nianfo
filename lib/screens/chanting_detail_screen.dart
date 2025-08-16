@@ -19,6 +19,7 @@ class ChantingDetailScreen extends StatefulWidget {
 class _ChantingDetailScreenState extends State<ChantingDetailScreen> {
   int _todayCount = 0;
   bool _isLoading = true;
+  bool _isContentLoading = true;
   double _fontSize = 18.0; // 默认字体大小
   double _pronunciationFontSize = 15.0; // 默认注音字体大小
 
@@ -26,6 +27,29 @@ class _ChantingDetailScreenState extends State<ChantingDetailScreen> {
   void initState() {
     super.initState();
     _loadTodayCount();
+    _loadContent();
+  }
+
+  Future<void> _loadContent() async {
+    // 模拟内容加载过程，根据经文长度调整加载时间
+    final contentLength = widget.chanting.content.length;
+    int loadingTime = 200; // 基础加载时间200ms
+    
+    // 根据内容长度增加加载时间，每1000字符增加100ms
+    if (contentLength > 1000) {
+      loadingTime += ((contentLength / 1000) * 100).round();
+    }
+    
+    // 最大加载时间1.5秒
+    loadingTime = loadingTime.clamp(200, 1500);
+    
+    await Future.delayed(Duration(milliseconds: loadingTime));
+    
+    if (mounted) {
+      setState(() {
+        _isContentLoading = false;
+      });
+    }
   }
 
   Future<void> _loadTodayCount() async {
@@ -258,10 +282,33 @@ class _ChantingDetailScreenState extends State<ChantingDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: _buildLazyContentList(),
+                    child: _isContentLoading 
+                        ? _buildLoadingWidget()
+                        : _buildLazyContentList(),
                   ),
                 ],
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadingWidget() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(
+            color: Colors.orange,
+          ),
+          SizedBox(height: 16),
+          Text(
+            '正在加载经文内容...',
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey,
             ),
           ),
         ],
@@ -377,27 +424,7 @@ class _ChantingDetailScreenState extends State<ChantingDetailScreen> {
   ) {
     List<TableRow> rows = [];
     
-    // 汉字行
-    rows.add(
-      TableRow(
-        children: lineChars.map((char) {
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 4),
-            child: SelectableText(
-              char,
-              style: TextStyle(
-                fontSize: contentFontSize,
-                height: 1.2,
-              ),
-              textAlign: TextAlign.center,
-              maxLines: 1,
-            ),
-          );
-        }).toList(),
-      ),
-    );
-    
-    // 注音行
+    // 注音行（放在汉字上方）
     if (hasPronunciation) {
       rows.add(
         TableRow(
@@ -426,24 +453,48 @@ class _ChantingDetailScreenState extends State<ChantingDetailScreen> {
       );
     }
     
+    // 汉字行
+    rows.add(
+      TableRow(
+        children: lineChars.map((char) {
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 4),
+            child: SelectableText(
+              char,
+              style: TextStyle(
+                fontSize: contentFontSize,
+                height: 1.2,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+            ),
+          );
+        }).toList(),
+      ),
+    );
+    
     return Table(
       columnWidths: Map.fromIterable(
         List.generate(lineChars.length, (index) => index),
         key: (index) => index,
-        value: (index) => const FlexColumnWidth(1.0),
+        value: (index) => const IntrinsicColumnWidth(),
       ),
       border: null,
       children: rows,
     );
   }
 
-  // 获取固定的每行字符数
+  // 获取固定的每行字符数（考虑注音宽度）
   int _getFixedCharsPerLine() {
     final screenWidth = MediaQuery.of(context).size.width;
     final availableWidth = screenWidth - 80;
-    final estimatedCharWidth = _fontSize + 6;
+    
+    // 考虑汉字和注音的宽度，注音通常比汉字更宽
+    final estimatedCharWidth = _fontSize + 10; // 增加宽度预留，确保注音显示完全
     final maxChars = (availableWidth / estimatedCharWidth).floor();
-    return maxChars.clamp(8, 15);
+    
+    // 调整字符数范围，减少每行字符数以确保注音显示完全
+    return maxChars.clamp(6, 12);
   }
 
 

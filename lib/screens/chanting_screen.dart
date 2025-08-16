@@ -610,23 +610,7 @@ class _ChantingScreenState extends State<ChantingScreen>
     // 创建表格
     List<TableRow> rows = [];
     
-    // 汉字行
-    rows.add(
-      TableRow(
-        children: displayChars.map((char) {
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 2),
-            child: Text(
-              char,
-              style: TextStyle(fontSize: contentFontSize),
-              textAlign: TextAlign.center,
-            ),
-          );
-        }).toList(),
-      ),
-    );
-    
-    // 注音行（如果有注音）
+    // 注音行（放在汉字上方，如果有注音）
     if (pronunciation.isNotEmpty) {
       rows.add(
         TableRow(
@@ -659,7 +643,6 @@ class _ChantingScreenState extends State<ChantingScreen>
                 ),
                 textAlign: TextAlign.center,
                 maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
             );
           }).toList(),
@@ -667,29 +650,46 @@ class _ChantingScreenState extends State<ChantingScreen>
       );
     }
     
+    // 汉字行
+    rows.add(
+      TableRow(
+        children: displayChars.map((char) {
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 2),
+            child: Text(
+              char,
+              style: TextStyle(fontSize: contentFontSize),
+              textAlign: TextAlign.center,
+            ),
+          );
+        }).toList(),
+      ),
+    );
+    
     return Table(
       columnWidths: Map.fromIterable(
         List.generate(displayChars.length, (index) => index),
         key: (index) => index,
-        value: (index) => const FlexColumnWidth(1.0), // 使用等宽列避免溢出
+        value: (index) => const IntrinsicColumnWidth(),
       ),
       border: null,
       children: rows,
     );
   }
 
-  // 计算列表视图中最大显示字符数
+  // 计算列表视图中最大显示字符数（考虑注音宽度）
   int _calculateMaxCharsForListDisplay(double fontSize) {
     // 获取屏幕宽度
     double screenWidth = MediaQuery.of(context).size.width;
     // 减去各种padding和margin（列表卡片有更多的间距）
     double availableWidth = screenWidth - 160; // 增加边距预留
-    // 估算每个字符的宽度
-    double charWidth = fontSize + 6; // 更准确的字符宽度估算
+    
+    // 考虑汉字和注音的宽度，注音通常比汉字更宽
+    double charWidth = fontSize + 12; // 增加宽度预留，确保注音显示完全
     // 计算最大字符数
     int maxChars = (availableWidth / charWidth).floor();
-    // 列表视图限制更严格，避免过宽
-    return maxChars.clamp(3, 8);
+    // 列表视图限制更严格，避免过宽，确保注音能完全显示
+    return maxChars.clamp(3, 6);
   }
 
 
