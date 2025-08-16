@@ -1,0 +1,28 @@
+allprojects {
+    repositories {
+        maven { url 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public/' }
+        maven { url 'https://mirrors.huaweicloud.com/repository/maven/' }
+        maven { url 'https://maven.aliyun.com/repository/google' }
+        maven { url 'https://maven.aliyun.com/repository/jcenter' }
+        maven { 
+            url 'http://maven.aliyun.com/nexus/content/groups/public'
+            allowInsecureProtocol = true
+        }
+        google()
+        mavenCentral()
+    }
+}
+
+def newBuildDir = rootProject.projectDir.parentFile.toPath().resolve("build").toFile()
+rootProject.buildDir = newBuildDir
+
+subprojects {
+    project.buildDir = "${rootProject.buildDir}/${project.name}"
+}
+subprojects {
+    project.evaluationDependsOn(':app')
+}
+
+tasks.register("clean", Delete) {
+    delete rootProject.buildDir
+}
