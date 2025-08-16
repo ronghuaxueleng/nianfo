@@ -182,6 +182,7 @@ CREATE TABLE dedication_templates (
 - Android Studio / VS Code
 - Android SDK (Android开发)
 - Xcode (iOS开发，仅macOS)
+- Chrome 浏览器 (Web开发)
 
 ### 国内开发环境配置
 ```bash
@@ -211,6 +212,91 @@ flutter build apk
 
 # 代码分析
 flutter analyze
+
+# Web开发运行
+flutter run -d chrome
+
+# Web构建
+flutter build web
+```
+
+### 🌐 Web平台开发
+
+#### 启用Web支持
+```bash
+# 确保已启用Web平台支持
+flutter config --enable-web
+
+# 检查Web支持状态
+flutter doctor
+```
+
+#### Web开发命令
+```bash
+# 在Chrome浏览器中运行应用
+flutter run -d chrome
+
+# 指定端口运行Web应用
+flutter run -d chrome --web-port 8080
+
+# 热重载模式运行Web应用
+flutter run -d chrome --hot
+
+# 构建Web版本（发布模式）
+flutter build web
+
+# 构建Web版本（调试模式）
+flutter build web --debug
+
+# 构建Web版本并指定基础路径
+flutter build web --base-href "/修行记录/"
+```
+
+#### Web本地测试
+```bash
+# 构建Web版本后在本地服务器中测试
+flutter build web
+cd build/web
+
+# 使用Python启动本地Web服务器
+python -m http.server 8000
+
+# 或使用Node.js serve包
+npx serve -s . -l 8000
+
+# 然后在浏览器中访问 http://localhost:8000
+```
+
+#### Web部署配置
+```bash
+# 部署到GitHub Pages（需要设置base-href）
+flutter build web --base-href "/repository-name/"
+
+# 部署到自定义域名
+flutter build web --base-href "/"
+
+# 优化Web构建（减小包大小）
+flutter build web --web-renderer canvaskit --tree-shake-icons
+```
+
+#### Web平台注意事项
+- **数据存储**: Web平台使用IndexedDB替代SQLite，应用会自动适配
+- **文件访问**: Web平台文件访问受限，图片选择功能可能需要调整
+- **性能优化**: Web版本建议启用CanvasKit渲染器以获得更好性能
+- **跨域问题**: 部署时注意配置CORS策略
+- **PWA支持**: 可配置为渐进式Web应用(PWA)以获得更好的用户体验
+
+#### Web调试技巧
+```bash
+# 启用详细日志
+flutter run -d chrome --verbose
+
+# 禁用Web安全检查（仅开发环境）
+flutter run -d chrome --web-browser-flag="--disable-web-security"
+
+# 使用不同的Web渲染器
+flutter run -d chrome --web-renderer html
+flutter run -d chrome --web-renderer canvaskit
 ```
 
 ### Gradle配置优化

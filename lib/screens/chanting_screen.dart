@@ -506,50 +506,65 @@ class _ChantingScreenState extends State<ChantingScreen>
                         ),
                       ],
                     ),
-                    trailing: PopupMenuButton<String>(
-                      onSelected: (value) {
-                        if (value == 'statistics') {
-                          _showStatistics(chanting);
-                        } else if (value == 'delete') {
-                          _deleteRecordDialog(record);
-                        }
-                      },
-                      itemBuilder: (context) => [
-                        const PopupMenuItem(
-                          value: 'statistics',
-                          child: Row(
-                            children: [
-                              Icon(Icons.bar_chart, size: 20),
-                              SizedBox(width: 8),
-                              Text('统计报表'),
-                            ],
-                          ),
-                        ),
-                        const PopupMenuItem(
-                          value: 'delete',
-                          child: Row(
-                            children: [
-                              Icon(Icons.delete, size: 20, color: Colors.red),
-                              SizedBox(width: 8),
-                              Text('删除记录', style: TextStyle(color: Colors.red)),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
                     onTap: () {
                       _showChantingDetails(chanting);
                     },
                   ),
-                  // 设置次数按钮区域
+                  // 操作按钮区域
                   Container(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton(
-                        onPressed: () => _showCountDialog(chanting),
-                        child: const Text('设置今日念诵次数'),
-                      ),
+                    child: Column(
+                      children: [
+                        // 第一行：设置念诵次数按钮
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton(
+                            onPressed: () => _showCountDialog(chanting),
+                            child: const Text('设置今日念诵次数'),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        // 第二行：功能按钮
+                        Row(
+                          children: [
+                            // 统计报表按钮
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () => _showStatistics(chanting),
+                                icon: const Icon(Icons.bar_chart, size: 16),
+                                label: const Text('统计'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.blue.shade600,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            // 回向按钮
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () => _showDedicationDialog(chanting),
+                                icon: const Icon(Icons.favorite, size: 16),
+                                label: const Text('回向'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.pink.shade600,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            // 删除记录按钮
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () => _deleteRecordDialog(record),
+                                icon: const Icon(Icons.delete, size: 16),
+                                label: const Text('删除'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.red.shade600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -823,5 +838,92 @@ class _ChantingScreenState extends State<ChantingScreen>
       // 从统计页面返回后重新加载计数
       _loadChantings();
     });
+  }
+
+  void _showDedicationDialog(Chanting chanting) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              Icons.favorite,
+              color: Colors.pink.shade600,
+            ),
+            const SizedBox(width: 8),
+            const Text('功德回向'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '念诵：${chanting.title}',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              '愿以此念诵功德，回向万界一切众生',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: const Text(
+                '愿以此功德，庄严佛净土\n上报四重恩，下济三途苦\n若有见闻者，悉发菩提心\n尽此一报身，同生极乐国',
+                style: TextStyle(
+                  fontSize: 15,
+                  height: 1.5,
+                  color: Colors.black87,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              '南无阿弥陀佛 🙏',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.orange,
+                fontSize: 16,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('关闭'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // 切换到回向文页面（通过底部导航）
+              if (Navigator.of(context).canPop()) {
+                Navigator.of(context).pop(); // 返回到主页面
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.pink.shade600,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('编写回向文'),
+          ),
+        ],
+      ),
+    );
   }
 }
