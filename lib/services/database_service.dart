@@ -4,6 +4,7 @@ import '../models/user.dart';
 import '../models/dedication.dart';
 import '../models/chanting.dart';
 import '../models/dedication_template.dart';
+import '../models/daily_stats.dart';
 
 class DatabaseService {
   static final DatabaseService instance = DatabaseService._init();
@@ -23,7 +24,7 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 4,
+      version: 5,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -46,8 +47,10 @@ class DatabaseService {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
         content TEXT NOT NULL,
+        chanting_id INTEGER,
         created_at TEXT NOT NULL,
-        updated_at TEXT
+        updated_at TEXT,
+        FOREIGN KEY (chanting_id) REFERENCES chantings (id)
       )
     ''');
 
@@ -56,7 +59,9 @@ class DatabaseService {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
         content TEXT NOT NULL,
+        pronunciation TEXT,
         type TEXT NOT NULL,
+        is_built_in INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL,
         updated_at TEXT
       )
@@ -73,8 +78,22 @@ class DatabaseService {
       )
     ''');
 
-    // 初始化内置模板
+    await db.execute('''
+      CREATE TABLE daily_stats (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        chanting_id INTEGER NOT NULL,
+        count INTEGER NOT NULL DEFAULT 0,
+        date TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT,
+        UNIQUE(chanting_id, date),
+        FOREIGN KEY (chanting_id) REFERENCES chantings (id)
+      )
+    ''');
+
+    // 初始化内置模板和内置经文
     await _initializeBuiltInTemplates(db);
+    await _initializeBuiltInChantings(db);
   }
 
   Future _upgradeDB(Database db, int oldVersion, int newVersion) async {
@@ -108,12 +127,52 @@ class DatabaseService {
         ALTER TABLE users ADD COLUMN avatar_type TEXT DEFAULT 'emoji'
       ''');
     }
+    
+    if (oldVersion < 5) {
+      // 添加回向文关联字段
+      await db.execute('''
+        ALTER TABLE dedications ADD COLUMN chanting_id INTEGER
+      ''');
+      
+      // 添加佛号经文新字段
+      await db.execute('''
+        ALTER TABLE chantings ADD COLUMN pronunciation TEXT
+      ''');
+      
+      await db.execute('''
+        ALTER TABLE chantings ADD COLUMN is_built_in INTEGER NOT NULL DEFAULT 0
+      ''');
+      
+      // 创建每日统计表
+      await db.execute('''
+        CREATE TABLE daily_stats (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          chanting_id INTEGER NOT NULL,
+          count INTEGER NOT NULL DEFAULT 0,
+          date TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT,
+          UNIQUE(chanting_id, date),
+          FOREIGN KEY (chanting_id) REFERENCES chantings (id)
+        )
+      ''');
+      
+      // 初始化内置经文
+      await _initializeBuiltInChantings(db);
+    }
   }
 
   Future<void> _initializeBuiltInTemplates(Database db) async {
     final templates = BuiltInTemplates.defaultTemplates;
     for (final template in templates) {
       await db.insert('dedication_templates', template.toMap());
+    }
+  }
+
+  Future<void> _initializeBuiltInChantings(Database db) async {
+    final chantings = BuiltInChantings.defaultChantings;
+    for (final chanting in chantings) {
+      await db.insert('chantings', chanting.toMap());
     }
   }
 
@@ -265,44 +324,104 @@ class DatabaseService {
     await db.delete('chantings', where: 'id = ?', whereArgs: [id]);
   }
 
+  // Daily Stats operations
+  Future<DailyStats> createOrUpdateDailyStats(int chantingId, int count) async {
+    final db = await instance.database;
+    final today = DailyStats.today.toIso8601String();
+    
+    // 检查今日是否已有记录
+    final existing = await db.query(
+      'daily_stats',
+      where: 'chanting_id = ? AND date = ?',
+      whereArgs: [chantingId, today],
+    );
+    
+    if (existing.isNotEmpty) {
+      // 更新现有记录
+      final existingStats = DailyStats.fromMap(existing.first);
+      final updatedStats = existingStats.copyWith(
+        count: count,
+        updatedAt: DateTime.now(),
+      );
+      
+      await db.update(
+        'daily_stats',
+        updatedStats.toMap(),
+        where: 'id = ?',
+        whereArgs: [updatedStats.id],
+      );
+      
+      return updatedStats;
+    } else {
+      // 创建新记录
+      final newStats = DailyStats(
+        chantingId: chantingId,
+        count: count,
+        date: DailyStats.today,
+        createdAt: DateTime.now(),
+      );
+      
+      final id = await db.insert('daily_stats', newStats.toMap());
+      return newStats.copyWith(id: id);
+    }
+  }
+
+  Future<int> getTodayCount(int chantingId) async {
+    final db = await instance.database;
+    final today = DailyStats.today.toIso8601String();
+    
+    final result = await db.query(
+      'daily_stats',
+      where: 'chanting_id = ? AND date = ?',
+      whereArgs: [chantingId, today],
+    );
+    
+    if (result.isNotEmpty) {
+      return DailyStats.fromMap(result.first).count;
+    }
+    return 0;
+  }
+
+  Future<List<DailyStats>> getDailyStatsByChanting(int chantingId, {int? limit}) async {
+    final db = await instance.database;
+    final maps = await db.query(
+      'daily_stats',
+      where: 'chanting_id = ?',
+      whereArgs: [chantingId],
+      orderBy: 'date DESC',
+      limit: limit,
+    );
+    return maps.map((map) => DailyStats.fromMap(map)).toList();
+  }
+
+  Future<List<DailyStats>> getAllTodayStats() async {
+    final db = await instance.database;
+    final today = DailyStats.today.toIso8601String();
+    
+    final maps = await db.query(
+      'daily_stats',
+      where: 'date = ?',
+      whereArgs: [today],
+      orderBy: 'count DESC',
+    );
+    return maps.map((map) => DailyStats.fromMap(map)).toList();
+  }
+
+  Future<int> getTotalCountByType(ChantingType type) async {
+    final db = await instance.database;
+    final result = await db.rawQuery('''
+      SELECT SUM(ds.count) as total_count
+      FROM daily_stats ds
+      INNER JOIN chantings c ON ds.chanting_id = c.id
+      WHERE c.type = ?
+    ''', [type.toString().split('.').last]);
+    
+    return (result.first['total_count'] as int?) ?? 0;
+  }
+
   Future close() async {
     final db = await instance.database;
     db.close();
   }
 }
 
-extension UserCopyWith on User {
-  User copyWith({int? id}) {
-    return User(
-      id: id ?? this.id,
-      username: username,
-      password: password,
-      createdAt: createdAt,
-    );
-  }
-}
-
-extension DedicationCopyWith on Dedication {
-  Dedication copyWith({int? id}) {
-    return Dedication(
-      id: id ?? this.id,
-      title: title,
-      content: content,
-      createdAt: createdAt,
-      updatedAt: updatedAt,
-    );
-  }
-}
-
-extension ChantingCopyWith on Chanting {
-  Chanting copyWith({int? id}) {
-    return Chanting(
-      id: id ?? this.id,
-      title: title,
-      content: content,
-      type: type,
-      createdAt: createdAt,
-      updatedAt: updatedAt,
-    );
-  }
-}

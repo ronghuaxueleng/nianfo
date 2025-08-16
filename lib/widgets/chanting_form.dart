@@ -20,6 +20,7 @@ class _ChantingFormState extends State<ChantingForm> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _contentController = TextEditingController();
+  final _pronunciationController = TextEditingController();
   late ChantingType _selectedType;
   bool _isLoading = false;
 
@@ -30,6 +31,7 @@ class _ChantingFormState extends State<ChantingForm> {
     if (widget.chanting != null) {
       _titleController.text = widget.chanting!.title;
       _contentController.text = widget.chanting!.content;
+      _pronunciationController.text = widget.chanting!.pronunciation ?? '';
     }
   }
 
@@ -37,6 +39,7 @@ class _ChantingFormState extends State<ChantingForm> {
   void dispose() {
     _titleController.dispose();
     _contentController.dispose();
+    _pronunciationController.dispose();
     super.dispose();
   }
 
@@ -53,6 +56,9 @@ class _ChantingFormState extends State<ChantingForm> {
         final chanting = Chanting(
           title: _titleController.text.trim(),
           content: _contentController.text.trim(),
+          pronunciation: _pronunciationController.text.trim().isEmpty 
+              ? null 
+              : _pronunciationController.text.trim(),
           type: _selectedType,
           createdAt: DateTime.now(),
         );
@@ -63,7 +69,11 @@ class _ChantingFormState extends State<ChantingForm> {
           id: widget.chanting!.id,
           title: _titleController.text.trim(),
           content: _contentController.text.trim(),
+          pronunciation: _pronunciationController.text.trim().isEmpty 
+              ? null 
+              : _pronunciationController.text.trim(),
           type: _selectedType,
+          isBuiltIn: widget.chanting!.isBuiltIn,
           createdAt: widget.chanting!.createdAt,
           updatedAt: DateTime.now(),
         );
@@ -155,6 +165,16 @@ class _ChantingFormState extends State<ChantingForm> {
                   }
                   return null;
                 },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _pronunciationController,
+                decoration: const InputDecoration(
+                  labelText: '注音 (可选)',
+                  hintText: '为经文或佛号添加拼音注音',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
               ),
               const SizedBox(height: 24),
               Row(

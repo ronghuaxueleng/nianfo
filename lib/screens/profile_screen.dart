@@ -2,7 +2,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
+import '../services/database_service.dart';
 import '../models/user.dart';
+import '../models/chanting.dart';
 import 'template_management_screen.dart';
 import 'login_screen.dart';
 import 'edit_profile_screen.dart';
@@ -18,6 +20,10 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   bool _isMenuVisible = false;
   late AnimationController _animationController;
   late Animation<Offset> _slideAnimation;
+  int _todayBuddhaNamCount = 0;
+  int _todaySutraCount = 0;
+  int _totalDedicationCount = 0;
+  bool _statsLoading = true;
 
   @override
   void initState() {
@@ -33,12 +39,36 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
       parent: _animationController,
       curve: Curves.easeInOut,
     ));
+    _loadStats();
   }
 
   @override
   void dispose() {
     _animationController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadStats() async {
+    setState(() {
+      _statsLoading = true;
+    });
+
+    try {
+      final buddhaNameCount = await DatabaseService.instance.getTotalCountByType(ChantingType.buddhaNam);
+      final sutraCount = await DatabaseService.instance.getTotalCountByType(ChantingType.sutra);
+      final dedications = await DatabaseService.instance.getAllDedications();
+
+      setState(() {
+        _todayBuddhaNamCount = buddhaNameCount;
+        _todaySutraCount = sutraCount;
+        _totalDedicationCount = dedications.length;
+        _statsLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _statsLoading = false;
+      });
+    }
   }
 
   void _showMenu() {
@@ -410,11 +440,6 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                     
                     const SizedBox(height: 32),
                     
-                    // 最近活动
-                    _buildRecentActivitySection(),
-                    
-                    const SizedBox(height: 32),
-                    
                     // 底部祝福
                     _buildBlessingSection(),
                     
@@ -510,29 +535,60 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
           ),
         ),
         const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: _buildStatCard(
-                icon: Icons.favorite,
-                title: '回向记录',
-                value: '0',
-                subtitle: '次回向',
-                color: Colors.pink,
+        if (_statsLoading)
+          const Center(child: CircularProgressIndicator())
+        else
+          Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildStatCard(
+                      icon: Icons.self_improvement,
+                      title: '念佛总数',
+                      value: _todayBuddhaNamCount.toString(),
+                      subtitle: '次念诵',
+                      color: Colors.blue,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildStatCard(
+                      icon: Icons.book,
+                      title: '读经总数',
+                      value: _todaySutraCount.toString(),
+                      subtitle: '次读诵',
+                      color: Colors.green,
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildStatCard(
-                icon: Icons.self_improvement,
-                title: '念佛记录',
-                value: '0',
-                subtitle: '次念诵',
-                color: Colors.blue,
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildStatCard(
+                      icon: Icons.favorite,
+                      title: '回向记录',
+                      value: _totalDedicationCount.toString(),
+                      subtitle: '篇回向文',
+                      color: Colors.pink,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildStatCard(
+                      icon: Icons.today,
+                      title: '修行天数',
+                      value: '1',
+                      subtitle: '天坚持',
+                      color: Colors.orange,
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
       ],
     );
   }
@@ -568,6 +624,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                 color: Colors.grey[600],
                 fontWeight: FontWeight.w500,
               ),
+              overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 4),
             Text(
@@ -577,6 +634,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                 fontWeight: FontWeight.bold,
                 color: color,
               ),
+              overflow: TextOverflow.ellipsis,
             ),
             Text(
               subtitle,
@@ -584,6 +642,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                 fontSize: 12,
                 color: Colors.grey[500],
               ),
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
@@ -591,52 +650,6 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     );
   }
 
-  Widget _buildRecentActivitySection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '最近活动',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: Colors.orange.shade800,
-          ),
-        ),
-        const SizedBox(height: 16),
-        Card(
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              children: [
-                Icon(
-                  Icons.calendar_today,
-                  size: 48,
-                  color: Colors.grey[400],
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  '暂无活动记录',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '开始您的修行之旅吧',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[500],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 
   Widget _buildBlessingSection() {
     return Card(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/dedication.dart';
 import '../models/dedication_template.dart';
+import '../models/chanting.dart';
 import '../services/database_service.dart';
 
 class DedicationForm extends StatefulWidget {
@@ -19,14 +20,19 @@ class _DedicationFormState extends State<DedicationForm> {
   bool _isLoading = false;
   List<DedicationTemplate> _templates = [];
   bool _templatesLoading = false;
+  List<Chanting> _chantings = [];
+  bool _chantingsLoading = false;
+  int? _selectedChantingId;
 
   @override
   void initState() {
     super.initState();
     _loadTemplates();
+    _loadChantings();
     if (widget.dedication != null) {
       _titleController.text = widget.dedication!.title;
       _contentController.text = widget.dedication!.content;
+      _selectedChantingId = widget.dedication!.chantingId;
     }
   }
 
@@ -44,6 +50,24 @@ class _DedicationFormState extends State<DedicationForm> {
     } catch (e) {
       setState(() {
         _templatesLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadChantings() async {
+    setState(() {
+      _chantingsLoading = true;
+    });
+
+    try {
+      final chantings = await DatabaseService.instance.getAllChantings();
+      setState(() {
+        _chantings = chantings;
+        _chantingsLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _chantingsLoading = false;
       });
     }
   }
@@ -150,6 +174,7 @@ class _DedicationFormState extends State<DedicationForm> {
         final dedication = Dedication(
           title: _titleController.text.trim(),
           content: _contentController.text.trim(),
+          chantingId: _selectedChantingId,
           createdAt: DateTime.now(),
         );
         await DatabaseService.instance.createDedication(dedication);
@@ -159,6 +184,7 @@ class _DedicationFormState extends State<DedicationForm> {
           id: widget.dedication!.id,
           title: _titleController.text.trim(),
           content: _contentController.text.trim(),
+          chantingId: _selectedChantingId,
           createdAt: widget.dedication!.createdAt,
           updatedAt: DateTime.now(),
         );
@@ -227,6 +253,87 @@ class _DedicationFormState extends State<DedicationForm> {
                 ),
               if (widget.dedication == null)
                 const SizedBox(height: 16),
+                
+              // 佛号经文关联选择
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '关联佛号/经文 (可选)',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    if (_chantingsLoading)
+                      const Center(child: CircularProgressIndicator())
+                    else
+                      DropdownButtonFormField<int?>(
+                        value: _selectedChantingId,
+                        decoration: const InputDecoration(
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        hint: const Text('选择要回向的佛号或经文'),
+                        items: [
+                          const DropdownMenuItem<int?>(
+                            value: null,
+                            child: Text('无关联（通用回向）'),
+                          ),
+                          ..._chantings.map((chanting) => DropdownMenuItem<int?>(
+                            value: chanting.id,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  chanting.type == ChantingType.buddhaNam
+                                      ? Icons.self_improvement
+                                      : Icons.book,
+                                  size: 16,
+                                  color: Colors.orange,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(child: Text(chanting.title)),
+                                if (chanting.isBuiltIn)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green.shade100,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      '内置',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.green.shade700,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          )).toList(),
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedChantingId = value;
+                          });
+                        },
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              
               TextFormField(
                 controller: _contentController,
                 decoration: const InputDecoration(
