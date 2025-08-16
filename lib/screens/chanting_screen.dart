@@ -629,11 +629,10 @@ class _ChantingScreenState extends State<ChantingScreen>
       firstPronunciationLine,
       13, // 汉字字体大小
       11, // 注音字体大小
-      maxLength: 10, // 限制显示字符数
     );
   }
 
-  // 构建字符级别对应的普通文本显示
+  // 构建字符级别对应的普通文本显示（使用正确的表格布局）
   Widget _buildCharacterWithPronunciation(
     String content, 
     String pronunciation, 
@@ -643,157 +642,106 @@ class _ChantingScreenState extends State<ChantingScreen>
   ) {
     if (content.isEmpty) return const SizedBox.shrink();
     
-    // 如果有长度限制，截取内容
-    String displayContent = content;
-    String displayPronunciation = pronunciation;
-    
-    if (maxLength != null && content.length > maxLength) {
-      displayContent = content.substring(0, maxLength) + '...';
-      // 对应地截取注音
-      if (pronunciation.isNotEmpty) {
-        final pronunciationChars = pronunciation.split(' ');
-        if (pronunciationChars.length >= maxLength) {
-          displayPronunciation = pronunciationChars.take(maxLength).join(' ') + '...';
-        }
-      }
-    }
-    
-    // 分离汉字和注音
-    final contentChars = displayContent.split('');
-    final pronunciationChars = displayPronunciation.split(' ');
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 汉字行 - 使用Wrap来避免溢出
-        Wrap(
-          children: contentChars.asMap().entries.map((entry) {
-            final char = entry.value;
-            final index = entry.key;
-            if (char == '.' && index < contentChars.length - 3) {
-              // 如果是省略号的一部分，特殊处理
-              return Text(char, style: TextStyle(fontSize: contentFontSize));
-            }
-            return Container(
-              width: 24, // 固定宽度确保对齐
-              alignment: Alignment.center,
-              child: Text(
-                char,
-                style: TextStyle(fontSize: contentFontSize),
-                textAlign: TextAlign.center,
-              ),
-            );
-          }).toList(),
-        ),
-        // 注音行
-        if (pronunciation.isNotEmpty) ...[
-          const SizedBox(height: 2),
-          Wrap(
-            children: contentChars.asMap().entries.map((entry) {
-              final index = entry.key;
-              final char = entry.value;
-              
-              // 如果是省略号，不显示注音
-              if (char == '.' && index < contentChars.length - 3) {
-                return Container(
-                  width: 24,
-                  child: Text(
-                    '',
-                    style: TextStyle(fontSize: pronunciationFontSize),
-                    textAlign: TextAlign.center,
-                  ),
-                );
-              }
-              
-              // 获取对应的注音
-              String pinyin = '';
-              if (index < pronunciationChars.length) {
-                pinyin = pronunciationChars[index];
-              }
-              
-              return Container(
-                width: 24, // 与汉字相同的宽度
-                alignment: Alignment.center,
-                child: Text(
-                  pinyin,
-                  style: TextStyle(
-                    fontSize: pronunciationFontSize,
-                    color: Colors.blue.shade600,
-                    fontStyle: FontStyle.italic,
-                  ),
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              );
-            }).toList(),
-          ),
-        ],
-      ],
-    );
-  }
-
-  // 构建字符级别对应的可选择文本显示
-  Widget _buildSelectableCharacterWithPronunciation(
-    String content, 
-    String pronunciation, 
-    double contentFontSize, 
-    double pronunciationFontSize
-  ) {
-    if (content.isEmpty) return const SizedBox.shrink();
-    
     // 分离汉字和注音
     final contentChars = content.split('');
     final pronunciationChars = pronunciation.split(' ');
     
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 汉字行 - 使用固定宽度的容器来确保对齐
-        Wrap(
-          children: contentChars.asMap().entries.map((entry) {
+    // 计算显示长度，列表视图需要限制显示长度
+    int displayLength = maxLength ?? _calculateMaxCharsForListDisplay(contentFontSize);
+    
+    // 如果内容过长，截取
+    List<String> displayChars = contentChars.take(displayLength).toList();
+    
+    // 如果被截取了，添加省略号
+    if (contentChars.length > displayLength) {
+      displayChars.add('...');
+    }
+    
+    // 创建表格
+    List<TableRow> rows = [];
+    
+    // 汉字行
+    rows.add(
+      TableRow(
+        children: displayChars.map((char) {
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 2),
+            child: Text(
+              char,
+              style: TextStyle(fontSize: contentFontSize),
+              textAlign: TextAlign.center,
+            ),
+          );
+        }).toList(),
+      ),
+    );
+    
+    // 注音行（如果有注音）
+    if (pronunciation.isNotEmpty) {
+      rows.add(
+        TableRow(
+          children: displayChars.asMap().entries.map((entry) {
+            final index = entry.key;
             final char = entry.value;
+            
+            // 省略号不显示注音
+            if (char == '...') {
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+                child: const Text('', textAlign: TextAlign.center),
+              );
+            }
+            
+            // 获取对应的注音
+            String pinyin = '';
+            if (index < pronunciationChars.length) {
+              pinyin = pronunciationChars[index];
+            }
+            
             return Container(
-              width: 24, // 固定宽度确保对齐
-              child: SelectableText(
-                char,
-                style: TextStyle(fontSize: contentFontSize),
+              padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 1),
+              child: Text(
+                pinyin,
+                style: TextStyle(
+                  fontSize: pronunciationFontSize,
+                  color: Colors.blue.shade600,
+                  fontStyle: FontStyle.italic,
+                ),
                 textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             );
           }).toList(),
         ),
-        // 注音行
-        if (pronunciation.isNotEmpty) ...[
-          const SizedBox(height: 2),
-          Wrap(
-            children: contentChars.asMap().entries.map((entry) {
-              final index = entry.key;
-              
-              // 获取对应的注音
-              String pinyin = '';
-              if (index < pronunciationChars.length) {
-                pinyin = pronunciationChars[index];
-              }
-              
-              return Container(
-                width: 24, // 与汉字相同的宽度
-                child: SelectableText(
-                  pinyin,
-                  style: TextStyle(
-                    fontSize: pronunciationFontSize,
-                    color: Colors.blue.shade600,
-                    fontStyle: FontStyle.italic,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              );
-            }).toList(),
-          ),
-        ],
-      ],
+      );
+    }
+    
+    return Table(
+      columnWidths: Map.fromIterable(
+        List.generate(displayChars.length, (index) => index),
+        key: (index) => index,
+        value: (index) => const FlexColumnWidth(1.0), // 使用等宽列避免溢出
+      ),
+      border: null,
+      children: rows,
     );
   }
+
+  // 计算列表视图中最大显示字符数
+  int _calculateMaxCharsForListDisplay(double fontSize) {
+    // 获取屏幕宽度
+    double screenWidth = MediaQuery.of(context).size.width;
+    // 减去各种padding和margin（列表卡片有更多的间距）
+    double availableWidth = screenWidth - 160; // 增加边距预留
+    // 估算每个字符的宽度
+    double charWidth = fontSize + 6; // 更准确的字符宽度估算
+    // 计算最大字符数
+    int maxChars = (availableWidth / charWidth).floor();
+    // 列表视图限制更严格，避免过宽
+    return maxChars.clamp(3, 8);
+  }
+
 
   String _formatDate(DateTime date) {
     return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
