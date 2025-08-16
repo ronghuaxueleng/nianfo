@@ -5,6 +5,7 @@ class Chanting {
   final String? pronunciation; // 注音（可选）
   final ChantingType type;
   final bool isBuiltIn; // 是否为内置经文
+  final bool isDeleted; // 逻辑删除标记
   final DateTime createdAt;
   final DateTime? updatedAt;
 
@@ -15,6 +16,7 @@ class Chanting {
     this.pronunciation,
     required this.type,
     this.isBuiltIn = false,
+    this.isDeleted = false,
     required this.createdAt,
     this.updatedAt,
   });
@@ -27,6 +29,7 @@ class Chanting {
       'pronunciation': pronunciation,
       'type': type.toString().split('.').last,
       'is_built_in': isBuiltIn ? 1 : 0,
+      'is_deleted': isDeleted ? 1 : 0,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
     };
@@ -42,6 +45,7 @@ class Chanting {
         (e) => e.toString().split('.').last == map['type'],
       ),
       isBuiltIn: (map['is_built_in'] ?? 0) == 1,
+      isDeleted: (map['is_deleted'] ?? 0) == 1,
       createdAt: DateTime.parse(map['created_at']),
       updatedAt: map['updated_at'] != null ? DateTime.parse(map['updated_at']) : null,
     );
@@ -54,6 +58,7 @@ class Chanting {
     String? pronunciation,
     ChantingType? type,
     bool? isBuiltIn,
+    bool? isDeleted,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -64,6 +69,7 @@ class Chanting {
       pronunciation: pronunciation ?? this.pronunciation,
       type: type ?? this.type,
       isBuiltIn: isBuiltIn ?? this.isBuiltIn,
+      isDeleted: isDeleted ?? this.isDeleted,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

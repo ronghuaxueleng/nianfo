@@ -208,7 +208,6 @@ class _ChantingScreenState extends State<ChantingScreen>
                 itemCount: filteredChantings.length,
                 itemBuilder: (context, index) {
                   final chanting = filteredChantings[index];
-                  final todayCount = _todayCounts[chanting.id] ?? 0;
                   
                   return Card(
                     margin: const EdgeInsets.only(bottom: 8),
@@ -238,34 +237,10 @@ class _ChantingScreenState extends State<ChantingScreen>
                             ),
                         ],
                       ),
-                      title: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              chanting.title,
-                              style: const TextStyle(fontWeight: FontWeight.bold),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.orange.shade100,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              '今日 $todayCount',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.orange.shade700,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
+                      title: Text(
+                        chanting.title,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        overflow: TextOverflow.ellipsis,
                       ),
                       subtitle: _buildQuickSelectContent(chanting),
                       trailing: Row(
@@ -418,7 +393,6 @@ class _ChantingScreenState extends State<ChantingScreen>
       itemCount: chantings.length,
       itemBuilder: (context, index) {
         final chanting = chantings[index];
-        final todayCount = _todayCounts[chanting.id] ?? 0;
         
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
@@ -449,33 +423,9 @@ class _ChantingScreenState extends State<ChantingScreen>
                       ),
                   ],
                 ),
-                title: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        chanting.title,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade100,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '今日 $todayCount 次',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.orange.shade800,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
+                title: Text(
+                  chanting.title,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -566,7 +516,7 @@ class _ChantingScreenState extends State<ChantingScreen>
                     const SizedBox(width: 12),
                     OutlinedButton(
                       onPressed: () => _showCountDialog(chanting),
-                      child: Text('设置: $todayCount'),
+                      child: const Text('设置次数'),
                     ),
                   ],
                 ),

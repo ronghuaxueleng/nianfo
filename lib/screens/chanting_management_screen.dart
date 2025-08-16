@@ -104,12 +104,145 @@ class _ChantingManagementScreenState extends State<ChantingManagementScreen>
     }
   }
 
+  Future<void> _logicalDeleteChanting(Chanting chanting) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('确认隐藏'),
+        content: Text('确定要隐藏"${chanting.title}"吗？\n\n隐藏后可以通过"重置内置经文"功能恢复。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('隐藏'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && chanting.id != null) {
+      await DatabaseService.instance.logicalDeleteChanting(chanting.id!);
+      _loadChantings();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('已隐藏 "${chanting.title}"'),
+            action: SnackBarAction(
+              label: '查看重置选项',
+              onPressed: _showResetDialog,
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _showResetDialog() async {
+    final deletedCount = await DatabaseService.instance.getDeletedBuiltInChantingsCount();
+    
+    if (!mounted) return;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('重置内置经文'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('当前已隐藏 $deletedCount 个内置经文'),
+            const SizedBox(height: 16),
+            const Text('重置将会：'),
+            const Text('• 恢复所有隐藏的内置经文'),
+            const Text('• 重置所有内置经文到初始状态'),
+            const Text('• 丢失对内置经文的修改'),
+            const SizedBox(height: 16),
+            const Text(
+              '注意：此操作不可撤销！',
+              style: TextStyle(
+                color: Colors.red,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _resetBuiltInChantings();
+            },
+            child: const Text(
+              '重置',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _resetBuiltInChantings() async {
+    try {
+      await DatabaseService.instance.resetBuiltInChantings();
+      _loadChantings();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('内置经文已重置完成'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('重置失败，请重试'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('佛号经文管理'),
         backgroundColor: Colors.orange.shade100,
+        actions: [
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'reset') {
+                _showResetDialog();
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'reset',
+                child: Row(
+                  children: [
+                    Icon(Icons.refresh, size: 20),
+                    SizedBox(width: 8),
+                    Text('重置内置经文'),
+                  ],
+                ),
+              ),
+            ],
+            tooltip: '更多选项',
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
@@ -331,27 +464,29 @@ class _ChantingManagementScreenState extends State<ChantingManagementScreen>
             ),
           ],
         ),
-        trailing: isBuiltIn 
-            ? null 
-            : PopupMenuButton<String>(
-                onSelected: (value) {
-                  if (value == 'edit') {
-                    _showChantingForm(chanting: chanting);
-                  } else if (value == 'delete') {
-                    _deleteChanting(chanting);
-                  }
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'edit',
-                    child: Text('编辑'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: Text('删除'),
-                  ),
-                ],
+        trailing: PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'edit') {
+                _showChantingForm(chanting: chanting);
+              } else if (value == 'delete') {
+                if (isBuiltIn) {
+                  _logicalDeleteChanting(chanting);
+                } else {
+                  _deleteChanting(chanting);
+                }
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'edit',
+                child: Text('编辑'),
               ),
+              PopupMenuItem(
+                value: 'delete',
+                child: Text(isBuiltIn ? '隐藏' : '删除'),
+              ),
+            ],
+          ),
         onTap: () {
           _showChantingDetails(chanting);
         },

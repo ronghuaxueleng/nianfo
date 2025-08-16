@@ -24,7 +24,7 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 5,
+      version: 6,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -62,6 +62,7 @@ class DatabaseService {
         pronunciation TEXT,
         type TEXT NOT NULL,
         is_built_in INTEGER NOT NULL DEFAULT 0,
+        is_deleted INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL,
         updated_at TEXT
       )
@@ -159,6 +160,13 @@ class DatabaseService {
       
       // 初始化内置经文
       await _initializeBuiltInChantings(db);
+    }
+    
+    if (oldVersion < 6) {
+      // 添加逻辑删除字段
+      await db.execute('''
+        ALTER TABLE chantings ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0
+      ''');
     }
   }
 
@@ -294,7 +302,11 @@ class DatabaseService {
 
   Future<List<Chanting>> getAllChantings() async {
     final db = await instance.database;
-    final maps = await db.query('chantings', orderBy: 'created_at DESC');
+    final maps = await db.query(
+      'chantings', 
+      where: 'is_deleted = 0',
+      orderBy: 'created_at DESC',
+    );
     return maps.map((map) => Chanting.fromMap(map)).toList();
   }
 
@@ -302,7 +314,7 @@ class DatabaseService {
     final db = await instance.database;
     final maps = await db.query(
       'chantings',
-      where: 'type = ?',
+      where: 'type = ? AND is_deleted = 0',
       whereArgs: [type.toString().split('.').last],
       orderBy: 'created_at DESC',
     );
@@ -322,6 +334,37 @@ class DatabaseService {
   Future<void> deleteChanting(int id) async {
     final db = await instance.database;
     await db.delete('chantings', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // 逻辑删除经文（用于内置经文）
+  Future<void> logicalDeleteChanting(int id) async {
+    final db = await instance.database;
+    await db.update(
+      'chantings',
+      {'is_deleted': 1, 'updated_at': DateTime.now().toIso8601String()},
+      where: 'id = ? AND is_built_in = 1',
+      whereArgs: [id],
+    );
+  }
+
+  // 重置内置经文
+  Future<void> resetBuiltInChantings() async {
+    final db = await instance.database;
+    
+    // 删除所有内置经文（包括逻辑删除的）
+    await db.delete('chantings', where: 'is_built_in = 1');
+    
+    // 重新初始化内置经文
+    await _initializeBuiltInChantings(db);
+  }
+
+  // 获取已删除的内置经文数量
+  Future<int> getDeletedBuiltInChantingsCount() async {
+    final db = await instance.database;
+    final result = await db.rawQuery(
+      'SELECT COUNT(*) as count FROM chantings WHERE is_built_in = 1 AND is_deleted = 1'
+    );
+    return result.first['count'] as int;
   }
 
   // Daily Stats operations

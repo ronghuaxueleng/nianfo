@@ -165,158 +165,140 @@ class _ChantingDetailScreenState extends State<ChantingDetailScreen> {
             ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 标题信息卡片
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+      body: Column(
+        children: [
+          // 固定头部信息
+          Container(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                // 标题信息卡片
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: (widget.chanting.type == ChantingType.buddhaNam 
-                                ? Colors.blue 
-                                : Colors.green).shade100,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            widget.chanting.type == ChantingType.buddhaNam ? '佛号' : '经文',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: (widget.chanting.type == ChantingType.buddhaNam 
-                                  ? Colors.blue 
-                                  : Colors.green).shade800,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        if (widget.chanting.isBuiltIn) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.orange.shade100,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              '内置',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.orange.shade700,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      widget.chanting.title,
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '创建时间: ${_formatDate(widget.chanting.createdAt)}',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // 今日计数卡片
-            if (!_isLoading && widget.chanting.id != null) ...[
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        Row(
                           children: [
-                            Text(
-                              '今日已念',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey[600],
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: (widget.chanting.type == ChantingType.buddhaNam 
+                                    ? Colors.blue 
+                                    : Colors.green).shade100,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                widget.chanting.type == ChantingType.buddhaNam ? '佛号' : '经文',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: (widget.chanting.type == ChantingType.buddhaNam 
+                                      ? Colors.blue 
+                                      : Colors.green).shade800,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '$_todayCount 次',
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.orange.shade800,
+                            if (widget.chanting.isBuiltIn) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange.shade100,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '内置',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.orange.shade700,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ),
-                            ),
+                            ],
                           ],
                         ),
-                      ),
-                      if (widget.showChantingButton)
-                        ElevatedButton.icon(
-                          onPressed: _incrementCount,
-                          icon: const Icon(Icons.add, size: 18),
-                          label: const Text('念诵 +1'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.orange.shade600,
-                            foregroundColor: Colors.white,
+                        const SizedBox(height: 12),
+                        Text(
+                          widget.chanting.title,
+                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                    ],
+                        const SizedBox(height: 8),
+                        Text(
+                          '创建时间: ${_formatDate(widget.chanting.createdAt)}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
-            ],
 
-            // 内容显示卡片
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '内容',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    _buildDetailContentWithPronunciation(),
-                  ],
-                ),
+              ],
+            ),
+          ),
+
+          // 可滚动的内容区域
+          Expanded(
+            child: Card(
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: _buildLazyContentList(),
+                  ),
+                ],
               ),
             ),
-
-            const SizedBox(height: 24),
-          ],
-        ),
+          ),
+        ],
       ),
+    );
+  }
+
+  Widget _buildLazyContentList() {
+    final allContentLines = widget.chanting.content.split('\n');
+    final pronunciationLines = widget.chanting.pronunciation?.split('\n') ?? [];
+    
+    // 保持原始索引对应关系，只过滤显示时的空行
+    final nonEmptyItems = <MapEntry<int, String>>[];
+    for (int i = 0; i < allContentLines.length; i++) {
+      if (allContentLines[i].trim().isNotEmpty) {
+        nonEmptyItems.add(MapEntry(i, allContentLines[i].trim()));
+      }
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      itemCount: nonEmptyItems.length,
+      itemBuilder: (context, index) {
+        final item = nonEmptyItems[index];
+        final originalIndex = item.key;
+        final content = item.value;
+        
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: _buildSelectableCharacterWithPronunciation(
+            content,
+            originalIndex < pronunciationLines.length ? pronunciationLines[originalIndex].trim() : '',
+            _fontSize,
+            _pronunciationFontSize,
+          ),
+        );
+      },
     );
   }
 
@@ -342,7 +324,7 @@ class _ChantingDetailScreenState extends State<ChantingDetailScreen> {
     );
   }
 
-  // 使用表格布局显示汉字和注音的对应关系（正确的分行表格实现）
+  // 优化的字符渲染方法 - 使用简化的固定分行
   Widget _buildSelectableCharacterWithPronunciation(
     String content, 
     String pronunciation, 
@@ -355,162 +337,115 @@ class _ChantingDetailScreenState extends State<ChantingDetailScreen> {
     final contentChars = content.split('');
     final pronunciationChars = pronunciation.split(' ');
     
-    // 动态分行，根据注音长度计算每行字符数
-    List<Widget> tableRows = [];
+    // 使用固定的字符数分行以提高性能
+    final charsPerLine = _getFixedCharsPerLine();
+    List<Widget> lineWidgets = [];
     
-    int currentIndex = 0;
-    
-    while (currentIndex < contentChars.length) {
-      // 动态计算这一行能放多少个字符
-      int lineLength = _calculateDynamicLineLength(
-        contentChars, 
+    for (int startIndex = 0; startIndex < contentChars.length; startIndex += charsPerLine) {
+      final endIndex = (startIndex + charsPerLine).clamp(0, contentChars.length);
+      final lineChars = contentChars.sublist(startIndex, endIndex);
+      
+      // 构建当前行
+      lineWidgets.add(_buildLineWidget(
+        lineChars, 
         pronunciationChars, 
-        currentIndex, 
+        startIndex, 
         contentFontSize, 
-        pronunciationFontSize
-      );
+        pronunciationFontSize,
+        pronunciation.isNotEmpty,
+      ));
       
-      int lineEnd = (currentIndex + lineLength).clamp(0, contentChars.length);
-      
-      // 当前行的字符
-      List<String> lineChars = contentChars.sublist(currentIndex, lineEnd);
-      
-      // 构建当前行的表格（包含汉字行和注音行）
-      List<TableRow> rows = [];
-      
-      // 汉字行
+      if (endIndex < contentChars.length) {
+        lineWidgets.add(const SizedBox(height: 12));
+      }
+    }
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: lineWidgets,
+    );
+  }
+
+  // 构建单行内容
+  Widget _buildLineWidget(
+    List<String> lineChars,
+    List<String> pronunciationChars,
+    int startIndex,
+    double contentFontSize,
+    double pronunciationFontSize,
+    bool hasPronunciation,
+  ) {
+    List<TableRow> rows = [];
+    
+    // 汉字行
+    rows.add(
+      TableRow(
+        children: lineChars.map((char) {
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 4),
+            child: SelectableText(
+              char,
+              style: TextStyle(
+                fontSize: contentFontSize,
+                height: 1.2,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+            ),
+          );
+        }).toList(),
+      ),
+    );
+    
+    // 注音行
+    if (hasPronunciation) {
       rows.add(
         TableRow(
-          children: lineChars.map((char) {
+          children: lineChars.asMap().entries.map((entry) {
+            final globalIndex = startIndex + entry.key;
+            final pinyin = globalIndex < pronunciationChars.length 
+                ? pronunciationChars[globalIndex] 
+                : '';
+            
             return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 2),
               child: SelectableText(
-                char,
+                pinyin,
                 style: TextStyle(
-                  fontSize: contentFontSize,
-                  height: 1.2,
+                  fontSize: pronunciationFontSize,
+                  color: Colors.blue.shade600,
+                  fontStyle: FontStyle.italic,
+                  height: 1.0,
                 ),
                 textAlign: TextAlign.center,
                 maxLines: 1,
-                // 强制单行显示
               ),
             );
           }).toList(),
         ),
       );
-      
-      // 注音行（如果有注音）
-      if (pronunciation.isNotEmpty) {
-        rows.add(
-          TableRow(
-            children: lineChars.asMap().entries.map((entry) {
-              final globalIndex = currentIndex + entry.key;
-              
-              // 获取对应的注音
-              String pinyin = '';
-              if (globalIndex < pronunciationChars.length) {
-                pinyin = pronunciationChars[globalIndex];
-              }
-              
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 2),
-                child: SelectableText(
-                  pinyin,
-                  style: TextStyle(
-                    fontSize: pronunciationFontSize,
-                    color: Colors.blue.shade600,
-                    fontStyle: FontStyle.italic,
-                    height: 1.0,
-                  ),
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  // 强制单行显示，溢出用省略号
-                ),
-              );
-            }).toList(),
-          ),
-        );
-      }
-      
-      // 创建当前行的表格
-      Widget lineTable = Table(
-        columnWidths: Map.fromIterable(
-          List.generate(lineChars.length, (index) => index),
-          key: (index) => index,
-          value: (index) => const IntrinsicColumnWidth(), // 使用内容自适应宽度
-        ),
-        border: null,
-        children: rows,
-      );
-      
-      tableRows.add(lineTable);
-      
-      // 行间距
-      if (lineEnd < contentChars.length) {
-        tableRows.add(const SizedBox(height: 12));
-      }
-      
-      currentIndex = lineEnd;
     }
     
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: tableRows,
+    return Table(
+      columnWidths: Map.fromIterable(
+        List.generate(lineChars.length, (index) => index),
+        key: (index) => index,
+        value: (index) => const FlexColumnWidth(1.0),
+      ),
+      border: null,
+      children: rows,
     );
   }
 
-  // 动态计算每行能放多少个字符（根据注音长度）
-  int _calculateDynamicLineLength(
-    List<String> contentChars,
-    List<String> pronunciationChars,
-    int startIndex,
-    double contentFontSize,
-    double pronunciationFontSize
-  ) {
-    double screenWidth = MediaQuery.of(context).size.width;
-    double availableWidth = screenWidth - 80; // 边距预留
-    
-    double currentWidth = 0;
-    int charCount = 0;
-    
-    for (int i = startIndex; i < contentChars.length; i++) {
-      // 估算汉字宽度
-      double charWidth = contentFontSize + 2; // 汉字 + padding
-      
-      // 估算对应注音宽度
-      double pinyinWidth = 0;
-      if (i < pronunciationChars.length && pronunciationChars[i].isNotEmpty) {
-        // 每个拼音字符约为字体大小的0.6倍宽度
-        pinyinWidth = pronunciationChars[i].length * pronunciationFontSize * 0.6 + 2;
-      }
-      
-      // 取汉字和注音宽度的最大值
-      double columnWidth = charWidth > pinyinWidth ? charWidth : pinyinWidth;
-      
-      // 检查是否还能放下
-      if (currentWidth + columnWidth > availableWidth && charCount > 0) {
-        break;
-      }
-      
-      currentWidth += columnWidth;
-      charCount++;
-      
-      // 安全限制，避免行过长
-      if (charCount >= 15) break;
-    }
-    
-    // 确保至少有一个字符
-    return charCount > 0 ? charCount : 1;
+  // 获取固定的每行字符数
+  int _getFixedCharsPerLine() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final availableWidth = screenWidth - 80;
+    final estimatedCharWidth = _fontSize + 6;
+    final maxChars = (availableWidth / estimatedCharWidth).floor();
+    return maxChars.clamp(8, 15);
   }
-  
-  // 保留原有计算方法作为后备
-  int _calculateMaxCharsPerLine(double fontSize) {
-    double screenWidth = MediaQuery.of(context).size.width;
-    double availableWidth = screenWidth - 80;
-    double charWidth = fontSize + 6;
-    int maxChars = (availableWidth / charWidth).floor();
-    return maxChars.clamp(6, 20);
-  }
+
 
   String _formatDate(DateTime date) {
     return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
