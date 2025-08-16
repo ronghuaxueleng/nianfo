@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../models/chanting.dart';
 import '../models/daily_stats.dart';
 import '../services/database_service.dart';
-import '../widgets/chanting_form.dart';
 
 class ChantingScreen extends StatefulWidget {
   const ChantingScreen({super.key});
@@ -65,56 +64,7 @@ class _ChantingScreenState extends State<ChantingScreen>
     }
   }
 
-  Future<void> _showChantingForm({Chanting? chanting, ChantingType? type}) async {
-    final result = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => ChantingForm(
-        chanting: chanting,
-        defaultType: type ?? ChantingType.buddhaNam,
-      ),
-    );
 
-    if (result == true) {
-      _loadChantings();
-    }
-  }
-
-  Future<void> _deleteChanting(Chanting chanting) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('确认删除'),
-        content: Text('确定要删除"${chanting.title}"吗？'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('删除'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true && chanting.id != null) {
-      // 内置经文不能删除
-      if (chanting.isBuiltIn) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('内置经文不能删除'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-        return;
-      }
-      
-      await DatabaseService.instance.deleteChanting(chanting.id!);
-      _loadChantings();
-    }
-  }
 
   Future<void> _incrementCount(Chanting chanting) async {
     if (chanting.id == null) return;
@@ -198,11 +148,191 @@ class _ChantingScreenState extends State<ChantingScreen>
     controller.dispose();
   }
 
+  Future<void> _showQuickSelectDialog() async {
+    // 获取所有佛号经文（包括内置和用户创建的）
+    final allChantings = await DatabaseService.instance.getAllChantings();
+    final currentType = _tabController.index == 0 
+        ? ChantingType.buddhaNam 
+        : ChantingType.sutra;
+    
+    // 过滤出当前类型的经文
+    final filteredChantings = allChantings
+        .where((c) => c.type == currentType)
+        .toList();
+    
+    if (filteredChantings.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('还没有${currentType == ChantingType.buddhaNam ? '佛号' : '经文'}，请先在个人中心添加'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.7,
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Icon(
+                  currentType == ChantingType.buddhaNam 
+                      ? Icons.self_improvement 
+                      : Icons.book,
+                  color: Colors.orange.shade700,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '选择${currentType == ChantingType.buddhaNam ? '佛号' : '经文'}',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('关闭'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: ListView.builder(
+                itemCount: filteredChantings.length,
+                itemBuilder: (context, index) {
+                  final chanting = filteredChantings[index];
+                  final todayCount = _todayCounts[chanting.id] ?? 0;
+                  
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: ListTile(
+                      leading: Stack(
+                        children: [
+                          Icon(
+                            currentType == ChantingType.buddhaNam 
+                                ? Icons.self_improvement 
+                                : Icons.book,
+                            color: chanting.isBuiltIn 
+                                ? Colors.orange.shade600 
+                                : Colors.blue.shade600,
+                          ),
+                          if (chanting.isBuiltIn)
+                            Positioned(
+                              right: 0,
+                              bottom: 0,
+                              child: Container(
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(
+                                  color: Colors.green,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      title: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              chanting.title,
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.shade100,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '今日 $todayCount',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.orange.shade700,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            chanting.content,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (chanting.pronunciation != null)
+                            Text(
+                              '注音: ${chanting.pronunciation}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.blue.shade600,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                        ],
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (chanting.isBuiltIn)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.green.shade100,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                '内置',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  color: Colors.green.shade700,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          const SizedBox(width: 8),
+                          Icon(Icons.add_circle_outline, color: Colors.orange.shade600),
+                        ],
+                      ),
+                      onTap: () async {
+                        Navigator.of(context).pop();
+                        await _incrementCount(chanting);
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('佛号经文'),
+        title: const Text('念诵记录'),
         backgroundColor: Colors.orange.shade100,
         bottom: TabBar(
           controller: _tabController,
@@ -211,6 +341,43 @@ class _ChantingScreenState extends State<ChantingScreen>
             Tab(text: '经文'),
           ],
         ),
+        actions: [
+          IconButton(
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('功能说明'),
+                  content: const Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('💙 快速选择念诵'),
+                      SizedBox(height: 8),
+                      Text('  从所有佛号经文中快速选择并念诵+1'),
+                      SizedBox(height: 12),
+                      Text('💡 使用说明：'),
+                      SizedBox(height: 4),
+                      Text('  • 点击右下角蓝色按钮快速选择念诵'),
+                      Text('  • 在个人中心"佛号经文管理"添加新内容'),
+                      Text('  • 点击列表中的"念诵+1"按钮记录'),
+                      Text('  • 点击标题查看详细内容和注音'),
+                      Text('  • 支持设置每日念诵次数'),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('知道了'),
+                    ),
+                  ],
+                ),
+              );
+            },
+            icon: const Icon(Icons.help_outline),
+            tooltip: '功能说明',
+          ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -221,14 +388,13 @@ class _ChantingScreenState extends State<ChantingScreen>
                 _buildChantingList(_sutras, ChantingType.sutra),
               ],
             ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          final currentType = _tabController.index == 0
-              ? ChantingType.buddhaNam
-              : ChantingType.sutra;
-          _showChantingForm(type: currentType);
-        },
-        child: const Icon(Icons.add),
+      floatingActionButton: Tooltip(
+        message: '快速选择念诵',
+        child: FloatingActionButton(
+          onPressed: _showQuickSelectDialog,
+          backgroundColor: Colors.blue.shade600,
+          child: const Icon(Icons.library_add, color: Colors.white),
+        ),
       ),
     );
   }
@@ -391,12 +557,15 @@ class _ChantingScreenState extends State<ChantingScreen>
                 ),
                 trailing: PopupMenuButton<String>(
                   onSelected: (value) {
-                    if (value == 'edit') {
-                      _showChantingForm(chanting: chanting);
-                    } else if (value == 'delete') {
-                      _deleteChanting(chanting);
-                    } else if (value == 'count') {
+                    if (value == 'count') {
                       _showCountDialog(chanting);
+                    } else if (value == 'manage') {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('请到个人中心 > 佛号经文管理进行编辑和删除操作'),
+                          backgroundColor: Colors.blue,
+                        ),
+                      );
                     }
                   },
                   itemBuilder: (context) => [
@@ -404,16 +573,10 @@ class _ChantingScreenState extends State<ChantingScreen>
                       value: 'count',
                       child: Text('设置次数'),
                     ),
-                    if (!chanting.isBuiltIn) ...[
-                      const PopupMenuItem(
-                        value: 'edit',
-                        child: Text('编辑'),
-                      ),
-                      const PopupMenuItem(
-                        value: 'delete',
-                        child: Text('删除'),
-                      ),
-                    ],
+                    const PopupMenuItem(
+                      value: 'manage',
+                      child: Text('管理内容'),
+                    ),
                   ],
                 ),
                 onTap: () {

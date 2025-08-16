@@ -6,6 +6,7 @@ import '../services/database_service.dart';
 import '../models/user.dart';
 import '../models/chanting.dart';
 import 'template_management_screen.dart';
+import 'chanting_management_screen.dart';
 import 'login_screen.dart';
 import 'edit_profile_screen.dart';
 
@@ -266,6 +267,17 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                 Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (context) => const TemplateManagementScreen(),
+                  ),
+                );
+              },
+            ),
+            _buildSideMenuItem(
+              icon: Icons.self_improvement,
+              title: '佛号经文管理',
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const ChantingManagementScreen(),
                   ),
                 );
               },
