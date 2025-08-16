@@ -4,7 +4,7 @@
 
 ## 项目概述
 
-这是一个名为"念佛记录"的 Flutter 移动应用程序，用于记录和管理佛教念经、经文和回向文本。
+这是一个名为"修行记录"的 Flutter 移动应用程序，用于记录和管理佛教念经、经文和回向文本。
 
 ## 开发命令
 
@@ -35,32 +35,50 @@ flutter analyze
 lib/
 ├── main.dart              # 应用入口
 ├── models/               # 数据模型
-│   ├── user.dart         # 用户模型
+│   ├── user.dart         # 用户模型（含昵称字段）
 │   ├── dedication.dart   # 回向文本模型
-│   └── chanting.dart     # 佛教念经/经文模型
+│   ├── chanting.dart     # 佛教念经/经文模型
+│   ├── chanting_record.dart # 修行记录模型
+│   ├── daily_stats.dart  # 每日统计模型
+│   └── dedication_template.dart # 回向文模板模型
 ├── screens/              # UI界面
 │   ├── login_screen.dart # 登录/注册界面
 │   ├── home_screen.dart  # 主导航界面
 │   ├── dedication_screen.dart # 回向管理界面
-│   └── chanting_screen.dart   # 念经/经文管理界面
+│   ├── chanting_screen.dart   # 修行记录管理界面
+│   ├── chanting_management_screen.dart # 佛号经文管理界面
+│   ├── chanting_detail_screen.dart # 经文详情界面
+│   ├── chanting_statistics_screen.dart # 统计报表界面
+│   ├── profile_screen.dart    # 个人中心界面
+│   ├── edit_profile_screen.dart # 编辑资料界面
+│   └── template_management_screen.dart # 模板管理界面
 ├── widgets/              # 可复用组件
 │   ├── dedication_form.dart # 添加/编辑回向的表单
-│   └── chanting_form.dart   # 添加/编辑念经的表单
+│   ├── chanting_form.dart   # 添加/编辑念经的表单
+│   └── template_form.dart   # 模板表单
 └── services/             # 业务逻辑
     ├── auth_service.dart     # 认证服务
     └── database_service.dart # SQLite数据库操作
 ```
 
 ### 核心功能
-1. **用户认证**：简单的用户名/密码登录，本地存储
-2. **回向管理**：佛教回向文本的增删改查操作
-3. **念经管理**：分别管理佛号和经文
-4. **本地存储**：SQLite数据库实现离线数据持久化
+1. **用户认证**：用户名/密码登录，支持昵称设置，本地存储
+2. **回向管理**：佛教回向文本的增删改查操作，支持模板系统
+3. **佛号经文管理**：分别管理佛号和经文，支持注音、内置库和自定义添加
+4. **修行记录系统**：
+   - 从佛号经文管理中选择添加到修行记录
+   - 记录与管理分离，删除记录不影响原始数据
+   - 每日念诵次数统计和手动设置
+   - 详细的统计报表和数据分析
+5. **本地存储**：SQLite数据库实现离线数据持久化
 
 ### 数据库结构
-- **users（用户表）**: id, username, password, created_at
-- **dedications（回向表）**: id, title, content, created_at, updated_at
-- **chantings（念经表）**: id, title, content, type (佛号/经文), created_at, updated_at
+- **users（用户表）**: id, username, password, avatar, avatar_type, nickname, created_at
+- **dedications（回向表）**: id, title, content, chanting_id, created_at, updated_at
+- **chantings（佛号经文表）**: id, title, content, pronunciation, type, is_built_in, is_deleted, created_at, updated_at
+- **chanting_records（修行记录表）**: id, chanting_id, created_at, updated_at
+- **daily_stats（每日统计表）**: id, chanting_id, count, date, created_at, updated_at
+- **dedication_templates（回向模板表）**: id, title, content, is_built_in, created_at, updated_at
 
 ### 状态管理
 - 使用Provider模式管理认证状态

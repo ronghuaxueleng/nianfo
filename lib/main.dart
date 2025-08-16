@@ -21,7 +21,7 @@ class NianfoApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthService()),
       ],
       child: MaterialApp(
-        title: '念佛记录',
+        title: '修行记录',
         theme: ThemeData(
           primarySwatch: Colors.orange,
           visualDensity: VisualDensity.adaptivePlatformDensity,

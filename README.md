@@ -1,4 +1,4 @@
-# 念佛记录 (Nianfo Record)
+# 修行记录 (Spiritual Practice Record)
 
 一款专为修行人士设计的移动应用，用于记录和管理佛教念经、回向文本，支持功德记录和修行管理。
 
@@ -6,9 +6,10 @@
 
 ### 🙏 核心功能
 - **回向文管理**：记录和管理各种回向文本
-- **佛号经文记录**：分别管理佛号和经文的念诵记录
+- **修行记录系统**：分别管理佛号和经文的修行记录，支持统计分析
+- **佛号经文管理**：内置佛号经文库，支持自定义添加和编辑
 - **模板系统**：内置常用回向文模板，支持自定义模板
-- **用户系统**：本地用户认证和个人资料管理
+- **用户系统**：本地用户认证、昵称设置和个人资料管理
 
 ### ✨ 亮点特性
 - **内置回向文模板**：
@@ -19,9 +20,15 @@
   - 家庭回向文
   - 法界回向文
 
+- **修行记录功能**：
+  - 从佛号经文管理中选择内容添加到修行记录
+  - 记录与管理分离，删除记录不影响原始数据
+  - 每日念诵次数统计和手动设置
+  - 详细的统计报表和修行数据分析
+
 - **个性化设置**：
   - 用户头像设置（emoji + 图片）
-  - 用户名修改
+  - 用户名和昵称设置
   - 个人资料管理
 
 - **现代化界面**：
@@ -29,6 +36,8 @@
   - 隐藏式侧边菜单
   - 手势滑动交互
   - 卡片式布局
+  - 注音功能支持（位置优化）
+  - 懒加载优化（长经文快速显示）
 
 ## 🏗️ 技术架构
 
@@ -64,12 +73,17 @@ lib/
 │   ├── user.dart         # 用户模型
 │   ├── dedication.dart   # 回向文本模型
 │   ├── chanting.dart     # 佛教念经/经文模型
+│   ├── chanting_record.dart # 修行记录模型
+│   ├── daily_stats.dart  # 每日统计模型
 │   └── dedication_template.dart # 回向文模板模型
 ├── screens/              # UI界面
 │   ├── login_screen.dart # 登录/注册界面
 │   ├── home_screen.dart  # 主导航界面
 │   ├── dedication_screen.dart # 回向管理界面
-│   ├── chanting_screen.dart   # 念经/经文管理界面
+│   ├── chanting_screen.dart   # 修行记录管理界面
+│   ├── chanting_management_screen.dart # 佛号经文管理界面
+│   ├── chanting_detail_screen.dart # 经文详情界面
+│   ├── chanting_statistics_screen.dart # 统计报表界面
 │   ├── profile_screen.dart    # 个人中心界面
 │   ├── edit_profile_screen.dart # 编辑资料界面
 │   └── template_management_screen.dart # 模板管理界面
@@ -92,6 +106,7 @@ CREATE TABLE users (
   password TEXT NOT NULL,
   avatar TEXT,
   avatar_type TEXT DEFAULT 'emoji',
+  nickname TEXT,
   created_at TEXT NOT NULL
 );
 ```
@@ -113,9 +128,37 @@ CREATE TABLE chantings (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   title TEXT NOT NULL,
   content TEXT NOT NULL,
+  pronunciation TEXT,
   type TEXT NOT NULL, -- 'buddhaNam' 或 'sutra'
+  is_built_in INTEGER NOT NULL DEFAULT 0,
+  is_deleted INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL,
   updated_at TEXT
+);
+```
+
+### 修行记录表 (chanting_records)
+```sql
+CREATE TABLE chanting_records (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  chanting_id INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT,
+  FOREIGN KEY (chanting_id) REFERENCES chantings (id) ON DELETE CASCADE
+);
+```
+
+### 每日统计表 (daily_stats)
+```sql
+CREATE TABLE daily_stats (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  chanting_id INTEGER NOT NULL,
+  count INTEGER NOT NULL DEFAULT 0,
+  date TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT,
+  UNIQUE(chanting_id, date),
+  FOREIGN KEY (chanting_id) REFERENCES chantings (id)
 );
 ```
 

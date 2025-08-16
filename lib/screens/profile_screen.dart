@@ -7,7 +7,6 @@ import '../models/user.dart';
 import '../models/chanting.dart';
 import 'template_management_screen.dart';
 import 'chanting_management_screen.dart';
-import 'login_screen.dart';
 import 'edit_profile_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -229,7 +228,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                     
                     const SizedBox(height: 12),
                     Text(
-                      user?.username ?? '游客',
+                      user?.nickname?.isNotEmpty == true ? user!.nickname! : (user?.username ?? '游客'),
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: Colors.orange.shade800,
@@ -500,7 +499,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '$greeting，${user?.username ?? '游客'}！',
+              '$greeting，${user?.nickname?.isNotEmpty == true ? user!.nickname! : (user?.username ?? '游客')}！',
               style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -714,14 +713,14 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('关于念佛记录'),
+        title: const Text('关于修行记录'),
         content: const Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('版本：1.0.0'),
             SizedBox(height: 8),
-            Text('念佛记录是一款帮助佛教徒记录和管理念经、回向的应用。'),
+            Text('修行记录是一款帮助修行者记录和管理念经、回向的应用。'),
             SizedBox(height: 8),
             Text('愿此应用能够帮助您更好地修行，积累功德。'),
             SizedBox(height: 16),
@@ -759,11 +758,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
             onPressed: () {
               authService.logout();
               Navigator.of(context).pop();
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(
-                  builder: (context) => const LoginScreen(),
-                ),
-              );
+              // 移除手动跳转，让Consumer自动处理状态变化
             },
             child: const Text('确定'),
           ),

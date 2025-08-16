@@ -17,6 +17,7 @@ class EditProfileScreen extends StatefulWidget {
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
+  final _nicknameController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
   
   String? _selectedAvatar;
@@ -38,6 +39,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final user = authService.currentUser;
     if (user != null) {
       _usernameController.text = user.username;
+      _nicknameController.text = user.nickname ?? '';
       _avatarType = user.avatarType;
       _selectedAvatar = user.avatar ?? '🧘';
       
@@ -58,6 +60,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   void dispose() {
     _usernameController.dispose();
+    _nicknameController.dispose();
     super.dispose();
   }
 
@@ -191,6 +194,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         _usernameController.text.trim(),
         _selectedAvatar,
         _avatarType,
+        _nicknameController.text.trim(),
       );
 
       if (success && mounted) {
@@ -418,6 +422,45 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           }
                           if (value.trim().length > 20) {
                             return '用户名不能超过20个字符';
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              
+              const SizedBox(height: 24),
+              
+              // 昵称编辑区域
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      Text(
+                        '昵称',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _nicknameController,
+                        decoration: InputDecoration(
+                          labelText: '昵称（可选）',
+                          border: const OutlineInputBorder(),
+                          prefixIcon: const Icon(Icons.badge),
+                          hintText: '请输入昵称，留空则显示用户名',
+                          filled: true,
+                          fillColor: Colors.grey.shade50,
+                        ),
+                        validator: (value) {
+                          if (value != null && value.trim().isNotEmpty) {
+                            if (value.trim().length > 20) {
+                              return '昵称不能超过20个字符';
+                            }
                           }
                           return null;
                         },

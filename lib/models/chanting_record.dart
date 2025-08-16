@@ -46,7 +46,7 @@ class ChantingRecord {
   }
 }
 
-// 包含完整佛号经文信息的念诵记录
+// 包含完整佛号经文信息的修行记录
 class ChantingRecordWithDetails {
   final ChantingRecord record;
   final Chanting chanting;

@@ -6,6 +6,7 @@ class User {
   final String password;
   final String? avatar; // 头像路径或emoji
   final AvatarType avatarType; // 头像类型
+  final String? nickname; // 昵称
   final DateTime createdAt;
 
   User({
@@ -14,6 +15,7 @@ class User {
     required this.password,
     this.avatar,
     this.avatarType = AvatarType.emoji,
+    this.nickname,
     required this.createdAt,
   });
 
@@ -24,6 +26,7 @@ class User {
       'password': password,
       'avatar': avatar,
       'avatar_type': avatarType.toString().split('.').last,
+      'nickname': nickname,
       'created_at': createdAt.toIso8601String(),
     };
   }
@@ -31,10 +34,11 @@ class User {
   factory User.fromMap(Map<String, dynamic> map) {
     return User(
       id: map['id'],
-      username: map['username'],
-      password: map['password'],
+      username: map['username'] ?? '',
+      password: map['password'] ?? '',
       avatar: map['avatar'],
       avatarType: map['avatar_type'] == 'image' ? AvatarType.image : AvatarType.emoji,
+      nickname: map['nickname'],
       createdAt: DateTime.parse(map['created_at']),
     );
   }
@@ -45,6 +49,7 @@ class User {
     String? password,
     String? avatar,
     AvatarType? avatarType,
+    String? nickname,
     DateTime? createdAt,
   }) {
     return User(
@@ -53,6 +58,7 @@ class User {
       password: password ?? this.password,
       avatar: avatar ?? this.avatar,
       avatarType: avatarType ?? this.avatarType,
+      nickname: nickname ?? this.nickname,
       createdAt: createdAt ?? this.createdAt,
     );
   }

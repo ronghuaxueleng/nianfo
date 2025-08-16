@@ -42,7 +42,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.self_improvement),
-            label: '念诵记录',
+            label: '修行记录',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),

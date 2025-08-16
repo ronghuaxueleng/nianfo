@@ -51,9 +51,13 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     if (!success && mounted) {
+      final errorMessage = _isLogin 
+          ? (authService.lastError ?? '登录失败，请检查用户名和密码')
+          : '注册失败，用户名可能已存在';
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_isLogin ? '登录失败，请检查用户名和密码' : '注册失败，用户名可能已存在'),
+          content: Text(errorMessage),
           backgroundColor: Colors.red,
         ),
       );
@@ -64,13 +68,14 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Form(
             key: _formKey,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                SizedBox(height: MediaQuery.of(context).size.height * 0.1),
                 const Icon(
                   Icons.self_improvement,
                   size: 80,
@@ -78,7 +83,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 32),
                 Text(
-                  '念佛记录',
+                  '修行记录',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                         color: Colors.orange[700],
                         fontWeight: FontWeight.bold,
@@ -151,6 +156,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     _isLogin ? '没有账号？点击注册' : '已有账号？点击登录',
                   ),
                 ),
+                SizedBox(height: MediaQuery.of(context).size.height * 0.1),
               ],
             ),
           ),

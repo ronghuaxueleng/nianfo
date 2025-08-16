@@ -25,7 +25,7 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 7,
+      version: 8,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -39,6 +39,7 @@ class DatabaseService {
         password TEXT NOT NULL,
         avatar TEXT,
         avatar_type TEXT DEFAULT 'emoji',
+        nickname TEXT,
         created_at TEXT NOT NULL
       )
     ''');
@@ -93,7 +94,7 @@ class DatabaseService {
       )
     ''');
 
-    // 创建念诵记录表
+    // 创建修行记录表
     await db.execute('''
       CREATE TABLE chanting_records (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -182,7 +183,7 @@ class DatabaseService {
     }
     
     if (oldVersion < 7) {
-      // 创建念诵记录表
+      // 创建修行记录表
       await db.execute('''
         CREATE TABLE chanting_records (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -191,6 +192,13 @@ class DatabaseService {
           updated_at TEXT,
           FOREIGN KEY (chanting_id) REFERENCES chantings (id) ON DELETE CASCADE
         )
+      ''');
+    }
+    
+    if (oldVersion < 8) {
+      // 添加昵称字段
+      await db.execute('''
+        ALTER TABLE users ADD COLUMN nickname TEXT
       ''');
     }
   }
@@ -217,17 +225,22 @@ class DatabaseService {
   }
 
   Future<User?> getUser(String username, String password) async {
-    final db = await instance.database;
-    final maps = await db.query(
-      'users',
-      where: 'username = ? AND password = ?',
-      whereArgs: [username, password],
-    );
+    try {
+      final db = await instance.database;
+      final maps = await db.query(
+        'users',
+        where: 'username = ? AND password = ?',
+        whereArgs: [username, password],
+      );
 
-    if (maps.isNotEmpty) {
-      return User.fromMap(maps.first);
+      if (maps.isNotEmpty) {
+        return User.fromMap(maps.first);
+      }
+      return null;
+    } catch (e) {
+      print('获取用户失败: $e');
+      rethrow;
     }
-    return null;
   }
 
   Future<void> updateUser(User user) async {
@@ -440,7 +453,7 @@ class DatabaseService {
     if (recordQuery.isNotEmpty) {
       final chantingId = recordQuery.first['chanting_id'] as int;
       
-      // 删除念诵记录
+      // 删除修行记录
       await db.delete('chanting_records', where: 'id = ?', whereArgs: [recordId]);
       
       // 删除对应的每日统计数据
@@ -541,6 +554,18 @@ class DatabaseService {
     ''', [type.toString().split('.').last]);
     
     return (result.first['total_count'] as int?) ?? 0;
+  }
+
+  // 获取特定修行记录的统计数据
+  Future<List<DailyStats>> getChantingStatistics(int chantingId) async {
+    final db = await instance.database;
+    final maps = await db.query(
+      'daily_stats',
+      where: 'chanting_id = ?',
+      whereArgs: [chantingId],
+      orderBy: 'date DESC',
+    );
+    return maps.map((map) => DailyStats.fromMap(map)).toList();
   }
 
   Future close() async {

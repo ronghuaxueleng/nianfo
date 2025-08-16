@@ -4,6 +4,7 @@ import '../models/chanting_record.dart';
 import '../models/daily_stats.dart';
 import '../services/database_service.dart';
 import 'chanting_detail_screen.dart';
+import 'chanting_statistics_screen.dart';
 
 class ChantingScreen extends StatefulWidget {
   const ChantingScreen({super.key});
@@ -185,7 +186,7 @@ class _ChantingScreenState extends State<ChantingScreen>
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '添加${currentType == ChantingType.buddhaNam ? '佛号' : '经文'}到念诵记录',
+                    '添加${currentType == ChantingType.buddhaNam ? '佛号' : '经文'}到修行记录',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -299,7 +300,7 @@ class _ChantingScreenState extends State<ChantingScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('念诵记录'),
+        title: const Text('修行记录'),
         backgroundColor: Colors.orange.shade100,
         bottom: TabBar(
           controller: _tabController,
@@ -315,13 +316,16 @@ class _ChantingScreenState extends State<ChantingScreen>
                 context: context,
                 builder: (context) => AlertDialog(
                   title: const Text('功能说明'),
-                  content: const Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('📿 念诵记录说明'),
+                  content: SizedBox(
+                    width: double.maxFinite,
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                      Text('📿 修行记录说明'),
                       SizedBox(height: 8),
-                      Text('  从个人中心选择佛号经文，添加到念诵记录进行日常修行'),
+                      Text('  从个人中心选择佛号经文，添加到修行记录进行日常修行'),
                       SizedBox(height: 12),
                       Text('💡 使用方法：'),
                       SizedBox(height: 4),
@@ -329,14 +333,23 @@ class _ChantingScreenState extends State<ChantingScreen>
                       Text('  • 右上角数字显示今日念诵次数'),
                       Text('  • 点击"设置今日念诵次数"手动调整'),
                       Text('  • 点击标题查看详细内容和注音'),
-                      Text('  • 菜单中可删除不需要的念诵记录'),
+                      Text('  • 菜单中可查看统计报表或删除记录'),
+                      SizedBox(height: 8),
+                      Text('📊 统计功能：'),
+                      SizedBox(height: 4),
+                      Text('  • 在详情页面点击"查看统计报表"按钮'),
+                      Text('  • 或通过右上角菜单选择"统计报表"'),
+                      Text('  • 查看总次数、修行天数、日均次数等数据'),
+                      Text('  • 按日期查看详细修行记录'),
                       SizedBox(height: 8),
                       Text('🔗 数据关联：'),
                       SizedBox(height: 4),
-                      Text('  • 念诵记录关联个人中心的佛号经文'),
+                      Text('  • 修行记录关联个人中心的佛号经文'),
                       Text('  • 删除记录不影响个人中心的原始数据'),
-                      Text('  • 删除原始经文会同时删除相关记录'),
-                    ],
+                          Text('  • 删除原始经文会同时删除相关记录'),
+                        ],
+                      ),
+                    ),
                   ),
                   actions: [
                     TextButton(
@@ -362,7 +375,7 @@ class _ChantingScreenState extends State<ChantingScreen>
               ],
             ),
       floatingActionButton: Tooltip(
-        message: '添加念诵记录',
+        message: '添加修行记录',
         child: FloatingActionButton(
           onPressed: _showQuickSelectDialog,
           backgroundColor: Colors.blue.shade600,
@@ -387,7 +400,7 @@ class _ChantingScreenState extends State<ChantingScreen>
             ),
             const SizedBox(height: 16),
             Text(
-              '还没有${type == ChantingType.buddhaNam ? '佛号' : '经文'}念诵记录',
+              '还没有${type == ChantingType.buddhaNam ? '佛号' : '经文'}修行记录',
               style: TextStyle(
                 fontSize: 18,
                 color: Colors.grey.shade600,
@@ -495,20 +508,20 @@ class _ChantingScreenState extends State<ChantingScreen>
                     ),
                     trailing: PopupMenuButton<String>(
                       onSelected: (value) {
-                        if (value == 'detail') {
-                          _showChantingDetails(chanting);
+                        if (value == 'statistics') {
+                          _showStatistics(chanting);
                         } else if (value == 'delete') {
                           _deleteRecordDialog(record);
                         }
                       },
                       itemBuilder: (context) => [
                         const PopupMenuItem(
-                          value: 'detail',
+                          value: 'statistics',
                           child: Row(
                             children: [
-                              Icon(Icons.visibility, size: 20),
+                              Icon(Icons.bar_chart, size: 20),
                               SizedBox(width: 8),
-                              Text('查看详情'),
+                              Text('统计报表'),
                             ],
                           ),
                         ),
@@ -580,7 +593,7 @@ class _ChantingScreenState extends State<ChantingScreen>
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('确认删除'),
-        content: Text('确定要删除念诵记录"${record.chanting.title}"吗？\n\n将同时删除：\n• 念诵记录\n• 相关的念诵次数统计\n\n这不会删除个人中心的原始经文。'),
+        content: Text('确定要删除修行记录"${record.chanting.title}"吗？\n\n将同时删除：\n• 修行记录\n• 相关的念诵次数统计\n\n这不会删除个人中心的原始经文。'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -721,7 +734,7 @@ class _ChantingScreenState extends State<ChantingScreen>
             }
             
             return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 1),
+              padding: const EdgeInsets.fromLTRB(1, 1, 1, 5),
               child: Text(
                 pinyin,
                 style: TextStyle(
@@ -795,6 +808,19 @@ class _ChantingScreenState extends State<ChantingScreen>
       ),
     ).then((_) {
       // 从详情页面返回后重新加载计数，以防在详情页面有更新
+      _loadChantings();
+    });
+  }
+
+  void _showStatistics(Chanting chanting) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => ChantingStatisticsScreen(
+          chanting: chanting,
+        ),
+      ),
+    ).then((_) {
+      // 从统计页面返回后重新加载计数
       _loadChantings();
     });
   }
