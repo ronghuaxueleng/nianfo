@@ -325,6 +325,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                     ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
