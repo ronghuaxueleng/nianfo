@@ -1,5 +1,5 @@
-name: nianfo_app
-description: A Flutter app for recording Buddhist chanting and dedications.
+name: xiuxing_jilu
+description: 修行记录 - 一个用于记录佛教念经、经文和回向文本的Flutter应用程序。
 publish_to: 'none'
 version: 1.0.0+1
 

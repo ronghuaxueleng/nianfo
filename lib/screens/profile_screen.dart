@@ -691,7 +691,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
             ),
             const SizedBox(height: 8),
             Text(
-              '愿以此功德，回向法界众生\n愿众生离苦得乐，究竟解脱',
+              '愿以此功德，回向万界众生\n愿众生离苦得乐，究竟解脱',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
