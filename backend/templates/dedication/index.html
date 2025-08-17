@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+
+{% block title %}回向管理{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="fas fa-hands mr-2"></i>回向管理
+        </h1>
+    </div>
+    
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="card-title mb-0">回向文列表</h3>
+                    <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#addDedicationModal">
+                        <i class="fas fa-plus mr-1"></i>添加回向
+                    </button>
+                </div>
+                <div class="card-body">
+                    <!-- 搜索和筛选 -->
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="searchInput" placeholder="搜索标题或内容...">
+                                <div class="input-group-append">
+                                    <button class="btn btn-outline-secondary" type="button" onclick="searchDedications()">
+                                        <i class="fas fa-search"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <button class="btn btn-outline-primary btn-block" onclick="resetSearch()">
+                                <i class="fas fa-redo mr-1"></i>重置
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 数据表格 -->
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th width="5%">ID</th>
+                                    <th width="20%">标题</th>
+                                    <th width="40%">内容预览</th>
+                                    <th width="15%">关联佛号经文</th>
+                                    <th width="12%">创建时间</th>
+                                    <th width="8%">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for dedication in dedications %}
+                                <tr>
+                                    <td>{{ dedication.id }}</td>
+                                    <td><strong>{{ dedication.title }}</strong></td>
+                                    <td>
+                                        <span class="text-truncate" style="max-width: 300px; display: inline-block;" title="{{ dedication.content }}">
+                                            {{ dedication.content[:80] }}{% if dedication.content|length > 80 %}...{% endif %}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if dedication.chanting %}
+                                        <span class="badge badge-info">{{ dedication.chanting.title }}</span>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="small text-muted">
+                                        {{ dedication.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-info btn-sm" onclick="viewDedication({{ dedication.id }})" title="查看">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            <button class="btn btn-warning btn-sm" onclick="editDedication({{ dedication.id }})" title="编辑">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn btn-danger btn-sm" onclick="deleteDedication({{ dedication.id }})" title="删除">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 添加回向模态框 -->
+<div class="modal fade" id="addDedicationModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">添加回向</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <form id="addDedicationForm">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="dedicationTitle">回向标题</label>
+                        <input type="text" class="form-control" id="dedicationTitle" name="title" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="dedicationContent">回向内容</label>
+                        <textarea class="form-control" id="dedicationContent" name="content" rows="6" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="chantingId">关联佛号经文（可选）</label>
+                        <select class="form-control" id="chantingId" name="chanting_id">
+                            <option value="">请选择...</option>
+                            {% for chanting in available_chantings %}
+                            <option value="{{ chanting.id }}">{{ chanting.title }} ({{ '佛号' if chanting.type == 'buddha' else '经文' }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 查看详情模态框 -->
+<div class="modal fade" id="viewDedicationModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="viewDedicationTitle"></h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label><strong>回向内容：</strong></label>
+                    <div id="viewDedicationContent" class="border p-3" style="white-space: pre-wrap;"></div>
+                </div>
+                <div class="form-group">
+                    <label><strong>关联佛号经文：</strong></label>
+                    <div id="viewDedicationChanting" class="border p-3"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 添加回向
+$('#addDedicationForm').on('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = {
+        title: $('#dedicationTitle').val(),
+        content: $('#dedicationContent').val(),
+        chanting_id: $('#chantingId').val() || null
+    };
+    
+    $.ajax({
+        url: '/api/dedications',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(formData),
+        success: function(response) {
+            $('#addDedicationModal').modal('hide');
+            location.reload();
+        },
+        error: function(xhr) {
+            alert('添加失败：' + xhr.responseJSON.message);
+        }
+    });
+});
+
+// 查看详情
+function viewDedication(id) {
+    $.ajax({
+        url: `/api/dedications/${id}`,
+        method: 'GET',
+        success: function(data) {
+            $('#viewDedicationTitle').text(data.title);
+            $('#viewDedicationContent').text(data.content);
+            $('#viewDedicationChanting').html(data.chanting ? 
+                `<span class="badge badge-info">${data.chanting.title}</span> (${data.chanting.type === 'buddha' ? '佛号' : '经文'})` : 
+                '<span class="text-muted">无关联</span>');
+            $('#viewDedicationModal').modal('show');
+        },
+        error: function(xhr) {
+            alert('获取详情失败：' + xhr.responseJSON.message);
+        }
+    });
+}
+
+// 编辑
+function editDedication(id) {
+    // TODO: 实现编辑功能
+    alert('编辑功能待实现');
+}
+
+// 删除
+function deleteDedication(id) {
+    if (!confirm('确定要删除这个回向吗？此操作不可恢复！')) {
+        return;
+    }
+    
+    $.ajax({
+        url: `/api/dedications/${id}`,
+        method: 'DELETE',
+        success: function(response) {
+            location.reload();
+        },
+        error: function(xhr) {
+            alert('删除失败：' + xhr.responseJSON.message);
+        }
+    });
+}
+
+// 搜索
+function searchDedications() {
+    const keyword = $('#searchInput').val();
+    if (keyword) {
+        window.location.href = `{{ url_for('dedication.index') }}?search=${encodeURIComponent(keyword)}`;
+    }
+}
+
+// 重置搜索
+function resetSearch() {
+    $('#searchInput').val('');
+    window.location.href = '{{ url_for('dedication.index') }}';
+}
+
+// 按Enter键搜索
+$('#searchInput').on('keypress', function(e) {
+    if (e.which === 13) {
+        searchDedications();
+    }
+});
+</script>
+{% endblock %}

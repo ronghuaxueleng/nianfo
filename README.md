@@ -1,10 +1,61 @@
-# 修行记录 (Spiritual Practice Record)
+# 修行记录 (Xiuxing Jilu)
 
-一款专为修行人士设计的移动应用，用于记录和管理佛教念经、回向文本，支持功德记录和修行管理。
+一个用于记录和管理佛教念经、经文和回向文本的完整解决方案，包含Flutter移动应用和Flask后台管理系统。
 
-## 📱 功能特色
+## 项目概述
 
-### 🙏 核心功能
+本项目分为两个主要部分：
+- **Flutter移动应用** (`app/`): 用户端的修行记录应用
+- **Flask后台管理** (`backend/`): 数据管理和API服务
+
+## 项目结构
+
+```
+nianfo/
+├── app/                  # Flutter移动应用
+│   ├── android/         # Android平台文件
+│   ├── lib/            # Dart源代码
+│   │   ├── models/     # 数据模型
+│   │   ├── screens/    # 界面
+│   │   ├── services/   # 业务逻辑
+│   │   └── widgets/    # 组件
+│   ├── assets/         # 资源文件
+│   └── pubspec.yaml    # Flutter依赖配置
+├── backend/             # Flask后台管理系统
+│   ├── models/         # 数据模型
+│   ├── routes/         # 路由处理
+│   ├── templates/      # HTML模板
+│   ├── static/         # 静态文件
+│   ├── app.py          # Flask主应用
+│   ├── config.py       # 配置文件
+│   └── requirements.txt # Python依赖
+├── CLAUDE.md           # Claude Code指导文档
+└── README.md           # 项目说明
+```
+
+## 快速开始
+
+### Flutter应用
+
+```bash
+cd app
+flutter pub get
+flutter run
+```
+
+### Flask后台
+
+```bash
+cd backend
+pip install -r requirements.txt
+python app.py
+```
+
+详细说明请参考各目录下的README文件。
+
+## 主要功能
+
+### 📱 移动应用功能
 - **回向文管理**：记录和管理各种回向文本
 - **修行记录系统**：分别管理佛号和经文的修行记录，支持统计分析
 - **佛号经文管理**：内置佛号经文库，支持自定义添加和编辑

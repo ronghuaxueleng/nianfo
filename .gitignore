@@ -34,3 +34,4 @@ google-services.json
 *.hprof
 /.claude/
 /.dart_tool/
+/app/.dart_tool/
