@@ -18,7 +18,7 @@ def index():
     search = request.args.get('search', '')
     user_filter = request.args.get('user', '')
     
-    query = Chanting.get_active().join(User, Chanting.user_id == User.id, isouter=True)
+    query = Chanting.get_active()
     
     # 类型筛选
     if chanting_type:
@@ -54,9 +54,12 @@ def index():
     )
     
     # 获取所有有佛号经文的用户列表用于筛选
-    users = db.session.query(User).join(
-        Chanting, User.id == Chanting.user_id
-    ).filter(Chanting.is_deleted == False).distinct().all()
+    user_ids = db.session.query(Chanting.user_id).filter(
+        Chanting.is_deleted == False,
+        Chanting.user_id.isnot(None)
+    ).distinct().all()
+    user_ids = [uid[0] for uid in user_ids]
+    users = User.query.filter(User.id.in_(user_ids)).all() if user_ids else []
     
     return render_template('chanting/index.html', 
                          chantings=chantings, 

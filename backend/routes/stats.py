@@ -39,7 +39,7 @@ def index():
         Chanting.title,
         Chanting.type,
         func.sum(DailyStats.count).label('total_count')
-    ).join(DailyStats).filter(
+    ).join(DailyStats, Chanting.id == DailyStats.chanting_id).filter(
         Chanting.is_deleted == False
     ).group_by(
         Chanting.id, Chanting.title, Chanting.type
@@ -51,7 +51,7 @@ def index():
     daily_stats_query = db.session.query(
         DailyStats,
         Chanting
-    ).join(Chanting).filter(
+    ).join(Chanting, DailyStats.chanting_id == Chanting.id).filter(
         DailyStats.date == target_date,
         Chanting.is_deleted == False
     ).order_by(desc(DailyStats.count))

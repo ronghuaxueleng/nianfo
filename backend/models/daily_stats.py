@@ -6,8 +6,8 @@ class DailyStats(db.Model):
     __tablename__ = 'daily_stats'
     
     id = db.Column(db.Integer, primary_key=True)
-    chanting_id = db.Column(db.Integer, db.ForeignKey('chantings.id'), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)  # 可选，如果需要用户关联
+    chanting_id = db.Column(db.Integer, nullable=False)
+    user_id = db.Column(db.Integer, nullable=True)  # 可选，如果需要用户关联
     count = db.Column(db.Integer, default=0, nullable=False)  # 念诵次数
     date = db.Column(db.Date, default=date.today, nullable=False)  # 统计日期
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -32,9 +32,12 @@ class DailyStats(db.Model):
     
     def to_dict_with_chanting(self):
         """包含佛号经文详情的字典格式"""
+        from models.chanting import Chanting
         data = self.to_dict()
-        if self.chanting:
-            data['chanting'] = self.chanting.to_dict()
+        if self.chanting_id:
+            chanting = Chanting.query.get(self.chanting_id)
+            if chanting:
+                data['chanting'] = chanting.to_dict()
         return data
     
     @classmethod

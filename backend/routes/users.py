@@ -18,8 +18,8 @@ def index():
         per_page = request.args.get('per_page', 20, type=int)
         search = request.args.get('search', '', type=str)
         
-        # 构建查询
-        query = User.query
+        # 构建查询 - 显示users表中所有未删除的用户
+        query = User.query.filter_by(is_deleted=False)
         
         if search:
             query = query.filter(
@@ -36,9 +36,12 @@ def index():
             error_out=False
         )
         
-        # 统计信息
-        total_users = User.query.count()
-        active_users = User.query.filter(User.created_at >= datetime.now().replace(day=1)).count()
+        # 统计信息 - 统计users表中所有未删除的用户
+        total_users = User.query.filter_by(is_deleted=False).count()
+        active_users = User.query.filter(
+            User.created_at >= datetime.now().replace(day=1),
+            User.is_deleted == False
+        ).count()
         
         return render_template('users/index.html', 
                              users=users, 
@@ -63,25 +66,17 @@ def detail(user_id):
         from models.daily_stats import DailyStats
         from models.dedication import Dedication
         
-        # 修行记录数
-        record_count = ChantingRecord.query.join(
-            User, ChantingRecord.chanting_id.in_(
-                db.session.query(User.id).filter(User.id == user_id)
-            )
-        ).count()
+        # 修行记录数（根据用户ID查询）
+        record_count = ChantingRecord.query.filter_by(user_id=user_id).count()
         
-        # 总念诵次数
-        total_count = db.session.query(db.func.sum(DailyStats.count)).join(
-            ChantingRecord
-        ).filter(ChantingRecord.chanting_id.in_(
-            db.session.query(User.id).filter(User.id == user_id)
-        )).scalar() or 0
+        # 总念诵次数（根据用户ID查询每日统计的总和）
+        total_count = db.session.query(db.func.sum(DailyStats.count)).filter_by(user_id=user_id).scalar() or 0
         
-        # 回向数量
-        dedication_count = Dedication.query.count()  # 简化处理
+        # 回向数量（根据用户ID查询）
+        dedication_count = Dedication.query.filter_by(user_id=user_id).count()
         
-        # 最近活动
-        recent_stats = DailyStats.query.order_by(
+        # 最近活动（根据用户ID查询）
+        recent_stats = DailyStats.query.filter_by(user_id=user_id).order_by(
             DailyStats.updated_at.desc()
         ).limit(10).all()
         
@@ -107,12 +102,30 @@ def edit(user_id):
         if request.method == 'POST':
             # 更新用户信息
             user.nickname = request.form.get('nickname', user.nickname)
-            user.avatar_type = request.form.get('avatar_type', user.avatar_type)
-            user.avatar = request.form.get('avatar', user.avatar)
+            
+            # 处理头像类型：空字符串转为None（默认头像）
+            avatar_type = request.form.get('avatar_type', user.avatar_type)
+            user.avatar_type = avatar_type if avatar_type else None
+            
+            # 处理头像内容
+            avatar = request.form.get('avatar', user.avatar)
+            user.avatar = avatar if avatar else None
             
             # 如果提供了新密码
             new_password = request.form.get('new_password')
+            confirm_password = request.form.get('confirm_password')
+            
             if new_password:
+                # 验证密码确认
+                if new_password != confirm_password:
+                    flash('两次输入的密码不一致', 'error')
+                    return render_template('users/edit.html', user=user)
+                
+                # 验证密码长度
+                if len(new_password) < 6:
+                    flash('新密码至少需要6位字符', 'error')
+                    return render_template('users/edit.html', user=user)
+                
                 # 使用与app相同的哈希方法加密密码
                 user.password = CryptoUtils.hash_password(new_password)
             
@@ -154,7 +167,7 @@ def delete(user_id):
 def export():
     """导出用户数据"""
     try:
-        users = User.query.all()
+        users = User.query.filter_by(is_deleted=False).all()
         
         # 构建CSV数据
         import csv
@@ -198,18 +211,24 @@ def export():
 def stats():
     """用户统计页面"""
     try:
-        # 总用户数
-        total_users = User.query.count()
+        # 总用户数 - 统计users表中所有未删除用户
+        total_users = User.query.filter_by(is_deleted=False).count()
         
         # 本月新增用户
         current_month = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        monthly_new = User.query.filter(User.created_at >= current_month).count()
+        monthly_new = User.query.filter(
+            User.created_at >= current_month,
+            User.is_deleted == False
+        ).count()
         
         # 今日新增用户
         today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        daily_new = User.query.filter(User.created_at >= today).count()
+        daily_new = User.query.filter(
+            User.created_at >= today,
+            User.is_deleted == False
+        ).count()
         
-        # 用户注册趋势（最近7天）
+        # 用户注册趋势（最近7天） - 统计users表中所有用户
         from datetime import timedelta
         trends = []
         for i in range(7):
@@ -217,7 +236,8 @@ def stats():
             next_date = date + timedelta(days=1)
             count = User.query.filter(
                 User.created_at >= date,
-                User.created_at < next_date
+                User.created_at < next_date,
+                User.is_deleted == False
             ).count()
             trends.append({
                 'date': date.strftime('%m-%d'),
@@ -225,11 +245,11 @@ def stats():
             })
         trends.reverse()
         
-        # 头像类型分布
+        # 头像类型分布 - 统计users表中所有用户
         avatar_types = db.session.query(
             User.avatar_type,
             db.func.count(User.id).label('count')
-        ).group_by(User.avatar_type).all()
+        ).filter_by(is_deleted=False).group_by(User.avatar_type).all()
         
         return render_template('users/stats.html',
                              total_users=total_users,

@@ -69,7 +69,7 @@
                                     </label>
                                     
                                     <input type="radio" class="btn-check" name="avatar_type" id="avatar_type_default" 
-                                           value="default" {% if not user.avatar_type or user.avatar_type == 'default' %}checked{% endif %}>
+                                           value="" {% if not user.avatar_type or user.avatar_type == 'default' %}checked{% endif %}>
                                     <label class="btn btn-outline-secondary" for="avatar_type_default">
                                         👤 默认头像
                                     </label>
@@ -132,7 +132,7 @@
                             
                             <div class="mb-3">
                                 <label for="confirm_password" class="form-label">确认新密码</label>
-                                <input type="password" class="form-control" id="confirm_password" 
+                                <input type="password" class="form-control" id="confirm_password" name="confirm_password"
                                        minlength="6" maxlength="50">
                                 <div class="invalid-feedback" id="password_error">
                                     两次输入的密码不一致
@@ -250,6 +250,7 @@ function updateAvatarInput(type) {
             avatarInput.placeholder = 'https://example.com/avatar.jpg';
             avatarInput.disabled = false;
             break;
+        case '':
         case 'default':
             helpText.textContent = '使用默认头像时无需输入内容';
             avatarInput.placeholder = '';

@@ -12,15 +12,9 @@ class Chanting(db.Model):
     type = db.Column(db.Enum('buddha', 'sutra'), nullable=False)  # 佛号或经文
     is_built_in = db.Column(db.Boolean, default=False)  # 是否为内置
     is_deleted = db.Column(db.Boolean, default=False)  # 逻辑删除
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)  # 创建者，内置内容为空
+    user_id = db.Column(db.Integer, nullable=True)  # 创建者ID，内置内容为空
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # 关联关系
-    user = db.relationship('User', backref='chantings', lazy='select')
-    records = db.relationship('ChantingRecord', backref='chanting', lazy='dynamic')
-    daily_stats = db.relationship('DailyStats', backref='chanting', lazy='dynamic')
-    dedications = db.relationship('Dedication', backref='chanting', lazy='dynamic')
     
     def to_dict(self):
         """转换为字典格式"""
@@ -33,7 +27,6 @@ class Chanting(db.Model):
             'is_built_in': self.is_built_in,
             'is_deleted': self.is_deleted,
             'user_id': self.user_id,
-            'user': self.user.to_dict() if self.user else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }

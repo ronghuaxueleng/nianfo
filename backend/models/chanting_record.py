@@ -6,8 +6,8 @@ class ChantingRecord(db.Model):
     __tablename__ = 'chanting_records'
     
     id = db.Column(db.Integer, primary_key=True)
-    chanting_id = db.Column(db.Integer, db.ForeignKey('chantings.id'), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)  # 可选，如果需要用户关联
+    chanting_id = db.Column(db.Integer, nullable=False)
+    user_id = db.Column(db.Integer, nullable=True)  # 可选，如果需要用户关联
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -23,22 +23,31 @@ class ChantingRecord(db.Model):
     
     def to_dict_with_chanting(self):
         """包含佛号经文详情的字典格式"""
+        from models.chanting import Chanting
         data = self.to_dict()
-        if self.chanting:
-            data['chanting'] = self.chanting.to_dict()
+        if self.chanting_id:
+            chanting = Chanting.query.get(self.chanting_id)
+            if chanting:
+                data['chanting'] = chanting.to_dict()
         return data
     
     def to_dict_with_user_and_chanting(self):
         """包含用户和佛号经文详情的字典格式"""
+        from models.chanting import Chanting
+        from models.user import User
         data = self.to_dict()
-        if hasattr(self, 'chanting') and self.chanting:
-            data['chanting'] = self.chanting.to_dict()
-        if hasattr(self, 'user') and self.user:
-            data['user'] = {
-                'id': self.user.id,
-                'username': self.user.username,
-                'nickname': self.user.nickname,
-                'avatar': self.user.avatar,
-                'avatar_type': self.user.avatar_type
-            }
+        if self.chanting_id:
+            chanting = Chanting.query.get(self.chanting_id)
+            if chanting:
+                data['chanting'] = chanting.to_dict()
+        if self.user_id:
+            user = User.query.get(self.user_id)
+            if user:
+                data['user'] = {
+                    'id': user.id,
+                    'username': user.username,
+                    'nickname': user.nickname,
+                    'avatar': user.avatar,
+                    'avatar_type': user.avatar_type
+                }
         return data

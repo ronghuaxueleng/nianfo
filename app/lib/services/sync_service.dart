@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as dev;
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/database_service.dart';
 import '../models/user.dart';
 import '../models/chanting.dart';
@@ -82,6 +83,11 @@ class SyncService {
     try {
       final db = await DatabaseService.instance.database;
       
+      // 获取当前用户认证信息
+      final prefs = await SharedPreferences.getInstance();
+      final username = prefs.getString('username');
+      final password = prefs.getString('password');
+      
       // 收集用户数据
       final users = await db.query('users');
       final usersData = users.map((row) => {
@@ -161,6 +167,10 @@ class SyncService {
       }).toList();
       
       return {
+        'auth': {
+          'username': username,
+          'password': password,
+        },
         'users': usersData,
         'chantings': chantingsData,
         'dedications': dedicationsData,
@@ -202,6 +212,11 @@ class SyncService {
         
         if (response.statusCode == 200) {
           final result = jsonDecode(response.body);
+          // 检查是否认证失败
+          if (result['message'] == 'authentication failed') {
+            dev.log('同步失败: 认证失败', name: 'SyncService');
+            throw Exception('认证失败，请检查用户名和密码');
+          }
           dev.log('同步成功: ${result['message']}', name: 'SyncService');
           return; // 成功后退出
         } else {
@@ -253,6 +268,10 @@ class SyncService {
       return true;
     } catch (e) {
       dev.log('手动上传失败: $e', name: 'SyncService');
+      // 如果是认证失败，需要特殊处理
+      if (e.toString().contains('认证失败')) {
+        dev.log('认证信息无效，请重新登录', name: 'SyncService');
+      }
       return false;
     } finally {
       _isSyncing = false;

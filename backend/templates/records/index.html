@@ -121,7 +121,7 @@
                                         <span class="badge badge-secondary">{{ record.total_count or 0 }}</span>
                                     </td>
                                     <td class="small text-muted">
-                                        {{ record.updated_at.strftime('%Y-%m-%d %H:%M') if record.updated_at else '-' }}
+                                        {{ record.updated_at[:19].replace('T', ' ') if record.updated_at else '-' }}
                                     </td>
                                     <td>
                                         <div class="btn-group btn-group-sm">

@@ -314,8 +314,8 @@ def get_chanting_records():
     filter_user_id = request.args.get('user_id', type=int)
     chanting_id = request.args.get('chanting_id', type=int)
     
-    # 构建查询，包含用户信息
-    query = ChantingRecord.query.outerjoin(User).outerjoin(Chanting)
+    # 构建查询
+    query = ChantingRecord.query
     
     # 如果指定了用户筛选，使用筛选条件，否则只显示当前用户的记录
     if filter_user_id:

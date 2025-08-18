@@ -21,8 +21,8 @@ def index():
     page = request.args.get('page', 1, type=int)
     per_page = 20
     
-    # 构建查询，包含用户信息
-    query = ChantingRecord.query.join(Chanting).outerjoin(User)
+    # 构建查询
+    query = ChantingRecord.query
     
     if chanting_id:
         query = query.filter(ChantingRecord.chanting_id == chanting_id)
@@ -51,27 +51,36 @@ def index():
         page=page, per_page=per_page, error_out=False
     )
     
-    # 为每个记录添加今日念诵次数和总次数
+    # 将记录转换为包含关联数据的字典列表
     today = date.today()
+    enhanced_records = []
     for record in records.items:
+        # 获取包含关联数据的记录字典
+        record_dict = record.to_dict_with_user_and_chanting()
+        
         # 今日念诵次数
         today_stat = DailyStats.query.filter_by(
             chanting_id=record.chanting_id,
             date=today
         ).first()
-        record.today_count = today_stat.count if today_stat else 0
+        record_dict['today_count'] = today_stat.count if today_stat else 0
         
         # 总念诵次数
         total_count = db.session.query(func.sum(DailyStats.count)).filter_by(
             chanting_id=record.chanting_id
         ).scalar()
-        record.total_count = total_count or 0
+        record_dict['total_count'] = total_count or 0
+        
+        enhanced_records.append(record_dict)
+    
+    # 替换原始的 records.items 为处理后的数据
+    records.items = enhanced_records
     
     # 获取可用的佛号经文列表
     available_chantings = Chanting.query.filter_by(is_deleted=False).order_by(Chanting.title).all()
     
-    # 获取所有用户列表（排除admin用户）
-    available_users = User.query.filter(User.username != 'admin').order_by(User.username).all()
+    # 获取所有应用用户列表（只包括未删除的普通用户）
+    available_users = User.query.filter_by(is_deleted=False).order_by(User.username).all()
     
     return render_template('records/index.html',
                          records=records.items,

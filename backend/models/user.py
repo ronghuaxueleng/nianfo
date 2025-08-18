@@ -13,12 +13,10 @@ class User(db.Model):
     avatar = db.Column(db.String(255), nullable=True)  # 头像路径或emoji
     avatar_type = db.Column(db.Enum('emoji', 'image'), default='emoji')
     nickname = db.Column(db.String(100), nullable=True)
+    is_deleted = db.Column(db.Boolean, default=False)  # 逻辑删除标记
+    deleted_at = db.Column(db.DateTime, nullable=True)  # 删除时间
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # 关联关系
-    chanting_records = db.relationship('ChantingRecord', backref='user', lazy='dynamic')
-    daily_stats = db.relationship('DailyStats', backref='user', lazy='dynamic')
-    dedications = db.relationship('Dedication', backref='user', lazy='dynamic')
     
     def set_password(self, password):
         """设置密码"""
@@ -36,6 +34,8 @@ class User(db.Model):
             'avatar': self.avatar,
             'avatar_type': self.avatar_type,
             'nickname': self.nickname,
+            'is_deleted': self.is_deleted,
+            'deleted_at': self.deleted_at.isoformat() if self.deleted_at else None,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
 

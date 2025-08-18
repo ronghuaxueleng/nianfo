@@ -115,10 +115,10 @@
                         {% for record in recent_records %}
                         <div class="list-group-item">
                             <div class="d-flex justify-content-between">
-                                <strong>{{ record.chanting.title }}</strong>
-                                <small class="text-muted">{{ record.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                                <strong>{{ record.chanting.title if record.chanting else '未知佛号经文' }}</strong>
+                                <small class="text-muted">{{ record.created_at[:19] if record.created_at else '' }}</small>
                             </div>
-                            <small class="text-muted">{{ record.chanting.type }}</small>
+                            <small class="text-muted">{{ record.chanting.type if record.chanting else '' }}</small>
                         </div>
                         {% endfor %}
                     </div>
