@@ -44,7 +44,7 @@ def main():
         # 初始化数据库
         with app.app_context():
             from database import db
-            from models import AdminUser
+            from models import AdminUser, DedicationTemplate
             
             # 创建表
             db.create_all()
@@ -60,6 +60,10 @@ def main():
                 db.session.add(admin)
                 db.session.commit()
                 print("创建默认管理员账户: admin / admin123")
+            
+            # 创建内置回向文模板
+            DedicationTemplate.create_built_in_templates()
+            print("内置回向文模板初始化完成")
         
         # 打印配置信息
         print_config_info(app)

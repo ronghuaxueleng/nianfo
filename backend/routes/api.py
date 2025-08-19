@@ -292,7 +292,6 @@ def delete_dedication(dedication_id):
 # ================== 回向文模板相关 ==================
 
 @api_bp.route('/dedication-templates', methods=['GET'])
-@jwt_required()
 def get_dedication_templates():
     """获取回向文模板列表"""
     templates = DedicationTemplate.query.order_by(
@@ -301,6 +300,58 @@ def get_dedication_templates():
     ).all()
     
     return jsonify([t.to_dict() for t in templates])
+
+@api_bp.route('/dedication-templates', methods=['POST'])
+def create_dedication_template():
+    """创建回向文模板（后台管理用）"""
+    data = request.get_json()
+    
+    if not data.get('title') or not data.get('content'):
+        return jsonify({'error': '标题和内容不能为空'}), 400
+    
+    template = DedicationTemplate(
+        title=data['title'],
+        content=data['content'],
+        is_built_in=data.get('is_built_in', True)  # 管理员创建的默认为内置
+    )
+    
+    db.session.add(template)
+    db.session.commit()
+    
+    return jsonify(template.to_dict()), 201
+
+@api_bp.route('/dedication-templates/<int:template_id>', methods=['GET'])
+def get_dedication_template(template_id):
+    """获取单个回向文模板"""
+    template = DedicationTemplate.query.get_or_404(template_id)
+    return jsonify(template.to_dict())
+
+@api_bp.route('/dedication-templates/<int:template_id>', methods=['PUT'])
+def update_dedication_template(template_id):
+    """更新回向文模板（管理员可修改所有模板）"""
+    template = DedicationTemplate.query.get_or_404(template_id)
+    
+    data = request.get_json()
+    
+    if 'title' in data:
+        template.title = data['title']
+    if 'content' in data:
+        template.content = data['content']
+    
+    template.updated_at = datetime.utcnow()
+    db.session.commit()
+    
+    return jsonify(template.to_dict())
+
+@api_bp.route('/dedication-templates/<int:template_id>', methods=['DELETE'])
+def delete_dedication_template(template_id):
+    """删除回向文模板（管理员可删除所有模板）"""
+    template = DedicationTemplate.query.get_or_404(template_id)
+    
+    db.session.delete(template)
+    db.session.commit()
+    
+    return jsonify({'message': '删除成功'})
 
 # ================== 修行记录相关 ==================
 
