@@ -44,7 +44,7 @@ def main():
         # 初始化数据库
         with app.app_context():
             from database import db
-            from models import AdminUser, DedicationTemplate
+            from models import AdminUser, DedicationTemplate, SyncConfig
             
             # 创建表
             db.create_all()
@@ -64,6 +64,10 @@ def main():
             # 创建内置回向文模板
             DedicationTemplate.create_built_in_templates()
             print("内置回向文模板初始化完成")
+            
+            # 初始化同步配置
+            SyncConfig.init_default_configs()
+            print("同步配置初始化完成")
         
         # 打印配置信息
         print_config_info(app)

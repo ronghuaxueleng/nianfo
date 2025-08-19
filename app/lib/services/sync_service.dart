@@ -24,8 +24,55 @@ class SyncService {
   bool _isSyncing = false;
   Timer? _syncTimer;
   
+  // 同步配置缓存
+  bool _autoSyncEnabled = true;
+  bool _wifiOnly = true;
+  bool _backgroundEnabled = false;
+  int _syncInterval = 60; // 分钟
+  
+  /// 重新加载同步设置
+  Future<void> reloadSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      _autoSyncEnabled = prefs.getBool('sync_auto_enabled') ?? true;
+      _wifiOnly = prefs.getBool('sync_wifi_only') ?? true;
+      _backgroundEnabled = prefs.getBool('sync_background_enabled') ?? false;
+      _syncInterval = prefs.getInt('sync_interval_minutes') ?? 60;
+      
+      dev.log('同步配置已重新加载：自动同步=$_autoSyncEnabled, 仅WiFi=$_wifiOnly, 间隔=${_syncInterval}分钟', name: 'SyncService');
+    } catch (e) {
+      dev.log('重新加载同步设置失败: $e', name: 'SyncService', level: 1000);
+    }
+  }
+  
+  /// 重新配置并重启自动同步
+  Future<void> reconfigureAutoSync() async {
+    await reloadSettings();
+    
+    // 重新启动自动同步
+    stopAutoSync();
+    if (_autoSyncEnabled) {
+      _startAutoSyncTimer();
+    }
+  }
+
   /// 开始自动同步（app启动后1分钟开始）
-  void startAutoSync() {
+  void startAutoSync() async {
+    // 先加载配置
+    await reloadSettings();
+    
+    // 如果自动同步未启用，不启动定时器
+    if (!_autoSyncEnabled) {
+      dev.log('自动同步已禁用，不启动同步服务', name: 'SyncService');
+      return;
+    }
+    
+    _startAutoSyncTimer();
+  }
+  
+  /// 启动自动同步定时器（内部方法）
+  void _startAutoSyncTimer() {
     // 避免重复启动
     if (_syncTimer != null) {
       return;
@@ -35,13 +82,15 @@ class SyncService {
     _syncTimer = Timer(const Duration(minutes: 1), () {
       _performSilentSync();
       
-      // 之后每30分钟同步一次
-      _syncTimer = Timer.periodic(const Duration(minutes: 30), (timer) {
-        _performSilentSync();
+      // 之后根据配置间隔进行同步
+      _syncTimer = Timer.periodic(Duration(minutes: _syncInterval), (timer) {
+        if (_autoSyncEnabled) {
+          _performSilentSync();
+        }
       });
     });
     
-    dev.log('数据同步服务已启动，将在1分钟后开始同步', name: 'SyncService');
+    dev.log('数据同步定时器已启动，间隔 $_syncInterval 分钟', name: 'SyncService');
   }
   
   /// 停止自动同步

@@ -464,29 +464,27 @@ class _ChantingManagementScreenState extends State<ChantingManagementScreen>
             ),
           ],
         ),
-        trailing: PopupMenuButton<String>(
-            onSelected: (value) {
-              if (value == 'edit') {
-                _showChantingForm(chanting: chanting);
-              } else if (value == 'delete') {
-                if (isBuiltIn) {
-                  _logicalDeleteChanting(chanting);
-                } else {
+        trailing: isBuiltIn 
+          ? Icon(Icons.lock, color: Colors.orange.shade300, size: 20) // 内置内容显示锁定图标
+          : PopupMenuButton<String>(
+              onSelected: (value) {
+                if (value == 'edit') {
+                  _showChantingForm(chanting: chanting);
+                } else if (value == 'delete') {
                   _deleteChanting(chanting);
                 }
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'edit',
-                child: Text('编辑'),
-              ),
-              PopupMenuItem(
-                value: 'delete',
-                child: Text(isBuiltIn ? '隐藏' : '删除'),
-              ),
-            ],
-          ),
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'edit',
+                  child: Text('编辑'),
+                ),
+                const PopupMenuItem(
+                  value: 'delete',
+                  child: Text('删除'),
+                ),
+              ],
+            ),
         onTap: () {
           _showChantingDetails(chanting);
         },

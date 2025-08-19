@@ -337,10 +337,11 @@ class DatabaseService {
 
   Future<void> updateDedicationTemplate(DedicationTemplate template) async {
     final db = await instance.database;
+    // 只允许更新非内置的回向模板
     await db.update(
       'dedication_templates',
       template.toMap(),
-      where: 'id = ?',
+      where: 'id = ? AND is_built_in = 0',
       whereArgs: [template.id],
     );
   }
@@ -380,17 +381,19 @@ class DatabaseService {
 
   Future<void> updateChanting(Chanting chanting) async {
     final db = await instance.database;
+    // 只允许更新非内置的佛号经文
     await db.update(
       'chantings',
       chanting.toMap(),
-      where: 'id = ?',
+      where: 'id = ? AND is_built_in = 0',
       whereArgs: [chanting.id],
     );
   }
 
   Future<void> deleteChanting(int id) async {
     final db = await instance.database;
-    await db.delete('chantings', where: 'id = ?', whereArgs: [id]);
+    // 只允许删除非内置的佛号经文
+    await db.delete('chantings', where: 'id = ? AND is_built_in = 0', whereArgs: [id]);
   }
 
   // 逻辑删除经文（用于内置经文）

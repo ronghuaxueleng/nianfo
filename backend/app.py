@@ -37,7 +37,7 @@ def create_app(config_name=None):
     init_db_monitoring(app)
     
     # 导入所有模型确保它们被注册到SQLAlchemy
-    from models import User, AdminUser, Chanting, Dedication, ChantingRecord, DailyStats, DedicationTemplate
+    from models import User, AdminUser, Chanting, Dedication, ChantingRecord, DailyStats, DedicationTemplate, SyncRecord, SyncConfig
     
     # 配置登录管理器
     login_manager.login_view = 'auth.login'
@@ -59,6 +59,7 @@ def create_app(config_name=None):
     from routes.system import system_bp
     from routes.sync import sync_bp
     from routes.users import users_bp
+    from routes.sync_management import sync_management_bp
     
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(main_bp)
@@ -70,11 +71,25 @@ def create_app(config_name=None):
     app.register_blueprint(system_bp, url_prefix='/system')
     app.register_blueprint(sync_bp, url_prefix='/sync')
     app.register_blueprint(users_bp, url_prefix='/users')
+    app.register_blueprint(sync_management_bp)
     
     # 全局模板变量
     @app.context_processor
     def inject_user():
         return dict(current_user=current_user)
+    
+    # 添加模板过滤器
+    @app.template_filter('tojsonpretty')
+    def to_json_pretty(value):
+        try:
+            import json
+            if isinstance(value, str):
+                parsed = json.loads(value)
+                return json.dumps(parsed, indent=2, ensure_ascii=False)
+            else:
+                return json.dumps(value, indent=2, ensure_ascii=False)
+        except:
+            return str(value)
     
     # 错误处理
     @app.errorhandler(404)

@@ -126,7 +126,7 @@ class _TemplateManagementScreenState extends State<TemplateManagementScreen> {
           ],
         ),
         trailing: template.isBuiltIn
-            ? null
+            ? Icon(Icons.lock, color: Colors.blue.shade300, size: 20) // 内置模板显示锁定图标
             : PopupMenuButton<String>(
                 onSelected: (value) {
                   if (value == 'edit') {

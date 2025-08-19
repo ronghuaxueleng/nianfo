@@ -132,6 +132,27 @@
                                 <i class="fas fa-users"></i> 用户管理
                             </a>
                         </li>
+                        
+                        <!-- 同步管理菜单 -->
+                        <li class="nav-item">
+                            <a class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('sync_management.') }}" href="#" data-toggle="collapse" data-target="#syncSubmenu" aria-expanded="false">
+                                <i class="fas fa-sync-alt"></i> 同步管理 <i class="fas fa-caret-down float-right"></i>
+                            </a>
+                            <div class="collapse {{ 'show' if request.endpoint and request.endpoint.startswith('sync_management.') }}" id="syncSubmenu">
+                                <ul class="nav flex-column ml-3">
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ 'active' if request.endpoint == 'sync_management.sync_records' }}" href="{{ url_for('sync_management.sync_records') }}">
+                                            <i class="fas fa-history"></i> 同步记录
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ 'active' if request.endpoint == 'sync_management.sync_configs' }}" href="{{ url_for('sync_management.sync_configs') }}">
+                                            <i class="fas fa-cogs"></i> 同步配置
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </li>
                     </ul>
                 </div>
             </nav>

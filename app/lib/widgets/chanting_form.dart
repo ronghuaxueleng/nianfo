@@ -46,6 +46,17 @@ class _ChantingFormState extends State<ChantingForm> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // 防止编辑内置佛号经文
+    if (widget.chanting?.isBuiltIn == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('内置佛号经文无法编辑'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });

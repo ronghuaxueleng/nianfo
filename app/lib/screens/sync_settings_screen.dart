@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/sync_service.dart';
 import '../config/app_config.dart';
+import 'sync_config_screen.dart';
 
 class SyncSettingsScreen extends StatefulWidget {
   const SyncSettingsScreen({super.key});
@@ -199,6 +200,11 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
             
             const SizedBox(height: 24),
             
+            // 同步配置入口
+            _buildConfigSection(),
+            
+            const SizedBox(height: 24),
+            
             // 同步操作区域
             _buildSyncActionsSection(),
             
@@ -284,6 +290,90 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
             fontSize: 14,
             fontWeight: FontWeight.w500,
             color: Colors.orange.shade700,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildConfigSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '同步配置',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.orange.shade800,
+          ),
+        ),
+        
+        const SizedBox(height: 16),
+        
+        // 同步配置管理入口
+        Card(
+          elevation: 2,
+          child: InkWell(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SyncConfigScreen(),
+                ),
+              );
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.tune,
+                      color: Colors.blue,
+                      size: 24,
+                    ),
+                  ),
+                  
+                  const SizedBox(width: 16),
+                  
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '同步设置',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          '管理自动同步、数据类型等配置',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  const Icon(
+                    Icons.arrow_forward_ios,
+                    color: Colors.grey,
+                    size: 16,
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ],

@@ -8,6 +8,8 @@ from models.dedication import Dedication
 from models.chanting_record import ChantingRecord
 from models.daily_stats import DailyStats
 from models.dedication_template import DedicationTemplate
+from models.sync_record import SyncRecord
+from models.sync_config import SyncConfig
 import logging
 
 # 配置日志输出到控制台以便调试
@@ -119,6 +121,37 @@ def upload_data():
             sync_logger.warning("请求中没有数据")
             return jsonify({'status': 'success', 'message': 'no data'}), 200
         
+        # 获取设备ID和同步类型
+        device_id = data.get('device_id', 'unknown')
+        sync_type = data.get('sync_type', 'incremental')
+        
+        # 创建同步记录
+        sync_record = SyncRecord(
+            user_id=user_id,
+            device_id=device_id,
+            sync_type=sync_type,
+            sync_direction='upload',
+            sync_status='success',
+            sync_data_types=str(list(data.keys())),
+            sync_started_at=datetime.utcnow()
+        )
+        
+        # 检查是否为首次同步
+        is_first_sync = SyncRecord.query.filter(
+            SyncRecord.user_id == user_id,
+            SyncRecord.device_id == device_id,
+            SyncRecord.sync_status == 'success'
+        ).first() is None
+        
+        sync_logger.info(f"同步信息: 用户ID={user_id}, 设备ID={device_id}, 首次同步={is_first_sync}")
+        
+        # 如果是首次同步且配置允许，自动创建用户相关的所有数据
+        if is_first_sync and SyncConfig.get_config('first_sync_auto_create_user', True):
+            sync_logger.info("首次同步，将创建完整的用户数据")
+        
+        # 获取数据覆盖策略
+        overwrite_policy = SyncConfig.get_config('app_data_overwrite_policy', {})
+        
         # 记录接收到的数据类型和数量
         data_summary = {}
         for key in ['users', 'chantings', 'dedications', 'chanting_records', 'daily_stats', 'dedication_templates']:
@@ -136,34 +169,55 @@ def upload_data():
         }
         
         # 同步用户数据（只同步当前用户）
-        if 'users' in data:
+        if 'users' in data and overwrite_policy.get('users', True):
             sync_logger.info(f"开始同步用户数据，数量: {len(data['users'])}")
-            sync_users(data['users'], result, current_user)
+            sync_users(data['users'], result, current_user, is_first_sync)
+        elif 'users' in data:
+            sync_logger.info("用户数据同步被策略禁止")
         
         # 同步佛号经文数据
-        if 'chantings' in data:
+        if 'chantings' in data and overwrite_policy.get('chantings', False):
             sync_logger.info(f"开始同步佛号经文数据，数量: {len(data['chantings'])}")
-            sync_chantings(data['chantings'], result, user_id)
+            sync_chantings(data['chantings'], result, user_id, is_first_sync)
+        elif 'chantings' in data:
+            sync_logger.info("佛号经文数据同步被策略禁止")
         
         # 同步回向数据
-        if 'dedications' in data:
+        if 'dedications' in data and overwrite_policy.get('dedications', True):
             sync_logger.info(f"开始同步回向数据，数量: {len(data['dedications'])}")
-            sync_dedications(data['dedications'], result, user_id)
+            sync_dedications(data['dedications'], result, user_id, is_first_sync)
+        elif 'dedications' in data:
+            sync_logger.info("回向数据同步被策略禁止")
         
         # 同步修行记录
-        if 'chanting_records' in data:
+        if 'chanting_records' in data and overwrite_policy.get('chanting_records', True):
             sync_logger.info(f"开始同步修行记录，数量: {len(data['chanting_records'])}")
-            sync_chanting_records(data['chanting_records'], result, user_id)
+            sync_chanting_records(data['chanting_records'], result, user_id, is_first_sync)
+        elif 'chanting_records' in data:
+            sync_logger.info("修行记录同步被策略禁止")
         
         # 同步每日统计
-        if 'daily_stats' in data:
+        if 'daily_stats' in data and overwrite_policy.get('daily_stats', True):
             sync_logger.info(f"开始同步每日统计，数量: {len(data['daily_stats'])}")
-            sync_daily_stats(data['daily_stats'], result, user_id)
+            sync_daily_stats(data['daily_stats'], result, user_id, is_first_sync)
+        elif 'daily_stats' in data:
+            sync_logger.info("每日统计同步被策略禁止")
         
         # 同步回向模板（模板是全局的，但记录创建者）
-        if 'dedication_templates' in data:
+        if 'dedication_templates' in data and overwrite_policy.get('dedication_templates', False):
             sync_logger.info(f"开始同步回向模板，数量: {len(data['dedication_templates'])}")
-            sync_dedication_templates(data['dedication_templates'], result)
+            sync_dedication_templates(data['dedication_templates'], result, is_first_sync)
+        elif 'dedication_templates' in data:
+            sync_logger.info("回向模板同步被策略禁止")
+        
+        # 完成同步记录
+        sync_record.sync_completed_at = datetime.utcnow()
+        sync_record.sync_status = 'success'
+        db.session.add(sync_record)
+        
+        # 将同步记录ID添加到返回结果
+        result['sync_record_id'] = sync_record.id
+        result['is_first_sync'] = is_first_sync
         
         db.session.commit()
         sync_logger.info(f"=== 用户 {current_user.username} 数据同步完成 ===")
@@ -172,13 +226,24 @@ def upload_data():
         return jsonify(result), 200
     
     except Exception as e:
+        # 记录同步失败
+        try:
+            if 'sync_record' in locals():
+                sync_record.sync_status = 'failed'
+                sync_record.error_message = str(e)
+                sync_record.sync_completed_at = datetime.utcnow()
+                db.session.add(sync_record)
+                db.session.commit()
+        except:
+            pass  # 忽略记录失败的错误
+        
         # 静默处理错误，不影响app
         sync_logger.error(f"数据同步失败: {str(e)}")
         db.session.rollback()
         # 仍然返回成功状态，避免app端报错
         return jsonify({'status': 'success', 'message': 'sync attempted'}), 200
 
-def sync_users(users_data, result, current_user):
+def sync_users(users_data, result, current_user, is_first_sync=False):
     """同步用户数据（只同步当前用户的信息）"""
     try:
         updated_count = 0
@@ -217,12 +282,17 @@ def sync_users(users_data, result, current_user):
     except Exception as e:
         sync_logger.error(f"同步用户数据失败: {str(e)}")
 
-def sync_chantings(chantings_data, result, user_id):
-    """同步佛号经文数据"""
+def sync_chantings(chantings_data, result, user_id, is_first_sync=False):
+    """同步佛号经文数据 - 严格保护内置内容"""
     try:
         synced_count = 0
         updated_count = 0
+        skipped_built_in_count = 0
         sync_logger.info(f"处理佛号经文数据，用户ID: {user_id}")
+        
+        # 获取内置内容保护策略
+        protection_policy = SyncConfig.get_config('built_in_content_protection', {})
+        strict_mode = protection_policy.get('strict_mode', True)
         
         for i, chanting_data in enumerate(chantings_data):
             sync_logger.info(f"处理第 {i+1}/{len(chantings_data)} 个佛号经文: {chanting_data.get('title', 'N/A')}")
@@ -231,69 +301,74 @@ def sync_chantings(chantings_data, result, user_id):
             if not title or not content:
                 continue
             
-            # 处理类型转换
-            chanting_type = chanting_data.get('type', 'buddha')
-            if chanting_type == 'buddhaNam':
-                chanting_type = 'buddha'
-            
-            # 查找现有记录（先查找用户自己的，然后查找全局的）
-            existing = Chanting.query.filter_by(
-                title=title, 
-                content=content,
-                user_id=user_id,
-                is_deleted=False
-            ).first()
-            
-            if not existing:
-                # 如果用户没有同名内容，检查是否是内置内容
-                existing = Chanting.query.filter_by(
+            # 严格模式下：检查是否为内置内容，如果是则完全跳过
+            if strict_mode:
+                existing_built_in = Chanting.query.filter_by(
                     title=title, 
                     content=content,
                     is_built_in=True,
                     is_deleted=False
                 ).first()
-            
-            if existing and existing.user_id == user_id:
-                # 只允许更新用户自己创建的内容
-                sync_logger.info(f"更新现有佛号经文: {title} (ID: {existing.id})")
-                if chanting_data.get('pronunciation'):
-                    existing.pronunciation = chanting_data['pronunciation']
-                existing.updated_at = parse_datetime(chanting_data.get('updated_at'))
-                updated_count += 1
-            elif not existing:
-                # 创建新记录，设置为当前用户
-                is_built_in = chanting_data.get('is_built_in', False)
-                # 普通用户不能创建内置内容
-                current_user = User.query.get(user_id)
-                if current_user and current_user.username != 'admin':
-                    is_built_in = False
                 
-                sync_logger.info(f"创建新佛号经文: {title}, 类型: {chanting_type}, 内置: {is_built_in}")
+                if existing_built_in:
+                    sync_logger.info(f"跳过内置佛号经文: {title}，app不允许修改内置内容")
+                    skipped_built_in_count += 1
+                    continue
+                
+                # 检查app数据是否试图创建内置内容
+                if chanting_data.get('is_built_in', False):
+                    sync_logger.warning(f"app尝试创建内置内容被阻止: {title}")
+                    skipped_built_in_count += 1
+                    continue
+            
+            # 处理类型转换
+            chanting_type = chanting_data.get('type', 'buddha')
+            if chanting_type == 'buddhaNam':
+                chanting_type = 'buddha'
+            
+            # 只查找用户自己创建的内容
+            existing_user_chanting = Chanting.query.filter_by(
+                title=title, 
+                content=content,
+                user_id=user_id,
+                is_built_in=False,  # 只处理非内置内容
+                is_deleted=False
+            ).first()
+            
+            if existing_user_chanting:
+                # 只允许更新用户自己创建的非内置内容
+                sync_logger.info(f"更新用户佛号经文: {title} (ID: {existing_user_chanting.id})")
+                if chanting_data.get('pronunciation'):
+                    existing_user_chanting.pronunciation = chanting_data['pronunciation']
+                existing_user_chanting.updated_at = parse_datetime(chanting_data.get('updated_at'))
+                updated_count += 1
+            else:
+                # 创建新的用户内容（强制设为非内置）
+                sync_logger.info(f"创建新用户佛号经文: {title}, 类型: {chanting_type}")
                 new_chanting = Chanting(
                     title=title,
                     content=content,
                     pronunciation=chanting_data.get('pronunciation'),
                     type=chanting_type,
-                    is_built_in=is_built_in,
+                    is_built_in=False,  # 强制设为非内置
                     user_id=user_id,
                     created_at=parse_datetime(chanting_data.get('created_at')),
                     updated_at=parse_datetime(chanting_data.get('updated_at'))
                 )
                 db.session.add(new_chanting)
                 synced_count += 1
-            else:
-                sync_logger.info(f"跳过佛号经文 {title}，因为已存在且不属于当前用户")
         
         result['details']['chantings'] = {
             'synced': synced_count,
-            'updated': updated_count
+            'updated': updated_count,
+            'skipped_built_in': skipped_built_in_count
         }
-        sync_logger.info(f"佛号经文同步完成: 新建 {synced_count}, 更新 {updated_count}")
+        sync_logger.info(f"佛号经文同步完成: 新建 {synced_count}, 更新 {updated_count}, 跳过内置 {skipped_built_in_count}")
     
     except Exception as e:
         sync_logger.error(f"同步佛号经文数据失败: {str(e)}")
 
-def sync_dedications(dedications_data, result, user_id):
+def sync_dedications(dedications_data, result, user_id, is_first_sync=False):
     """同步回向数据"""
     try:
         synced_count = 0
@@ -356,7 +431,7 @@ def sync_dedications(dedications_data, result, user_id):
     except Exception as e:
         sync_logger.error(f"同步回向数据失败: {str(e)}")
 
-def sync_chanting_records(records_data, result, user_id):
+def sync_chanting_records(records_data, result, user_id, is_first_sync=False):
     """同步修行记录"""
     try:
         synced_count = 0
@@ -406,7 +481,7 @@ def sync_chanting_records(records_data, result, user_id):
     except Exception as e:
         sync_logger.error(f"同步修行记录失败: {str(e)}")
 
-def sync_daily_stats(stats_data, result, user_id):
+def sync_daily_stats(stats_data, result, user_id, is_first_sync=False):
     """同步每日统计"""
     try:
         synced_count = 0
@@ -473,10 +548,17 @@ def sync_daily_stats(stats_data, result, user_id):
     except Exception as e:
         sync_logger.error(f"同步每日统计失败: {str(e)}")
 
-def sync_dedication_templates(templates_data, result):
-    """同步回向模板"""
+def sync_dedication_templates(templates_data, result, is_first_sync=False):
+    """同步回向模板 - 严格保护内置内容"""
     try:
         synced_count = 0
+        skipped_built_in_count = 0
+        
+        # 获取内置内容保护策略
+        protection_policy = SyncConfig.get_config('built_in_content_protection', {})
+        strict_mode = protection_policy.get('strict_mode', True)
+        
+        sync_logger.info(f"处理回向模板数据，严格模式: {strict_mode}")
         
         for template_data in templates_data:
             title = template_data.get('title')
@@ -484,21 +566,51 @@ def sync_dedication_templates(templates_data, result):
             if not title or not content:
                 continue
             
-            existing = DedicationTemplate.query.filter_by(title=title).first()
+            # 严格模式下：检查是否为内置模板，如果是则完全跳过
+            if strict_mode:
+                existing_built_in = DedicationTemplate.query.filter_by(
+                    title=title,
+                    is_built_in=True
+                ).first()
+                
+                if existing_built_in:
+                    sync_logger.info(f"跳过内置回向模板: {title}，app不允许修改内置内容")
+                    skipped_built_in_count += 1
+                    continue
+                
+                # 检查app数据是否试图创建内置模板
+                if template_data.get('is_built_in', False):
+                    sync_logger.warning(f"app尝试创建内置模板被阻止: {title}")
+                    skipped_built_in_count += 1
+                    continue
+            
+            # 检查是否已存在非内置的同名模板
+            existing = DedicationTemplate.query.filter_by(
+                title=title,
+                is_built_in=False
+            ).first()
+            
             if existing:
+                sync_logger.info(f"用户模板已存在，跳过: {title}")
                 continue
             
+            # 只允许创建非内置模板
+            sync_logger.info(f"创建新用户回向模板: {title}")
             new_template = DedicationTemplate(
                 title=title,
                 content=content,
-                is_built_in=template_data.get('is_built_in', False),
+                is_built_in=False,  # 强制设为非内置
                 created_at=parse_datetime(template_data.get('created_at')),
                 updated_at=parse_datetime(template_data.get('updated_at'))
             )
             db.session.add(new_template)
             synced_count += 1
         
-        result['details']['dedication_templates'] = {'synced': synced_count}
+        result['details']['dedication_templates'] = {
+            'synced': synced_count,
+            'skipped_built_in': skipped_built_in_count
+        }
+        sync_logger.info(f"回向模板同步完成: 新建 {synced_count}, 跳过内置 {skipped_built_in_count}")
     
     except Exception as e:
         sync_logger.error(f"同步回向模板失败: {str(e)}")

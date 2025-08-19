@@ -36,6 +36,17 @@ class _TemplateFormState extends State<TemplateForm> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // 防止编辑内置模板
+    if (widget.template?.isBuiltIn == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('内置模板无法编辑'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
