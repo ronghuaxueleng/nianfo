@@ -36,6 +36,9 @@ def create_app(config_name=None):
     from utils.db_monitor import init_db_monitoring
     init_db_monitoring(app)
     
+    # 导入所有模型确保它们被注册到SQLAlchemy
+    from models import User, AdminUser, Chanting, Dedication, ChantingRecord, DailyStats, DedicationTemplate
+    
     # 配置登录管理器
     login_manager.login_view = 'auth.login'
     login_manager.login_message = '请先登录以访问此页面。'
@@ -43,7 +46,6 @@ def create_app(config_name=None):
     
     @login_manager.user_loader
     def load_user(user_id):
-        from models.user import AdminUser
         return AdminUser.query.get(int(user_id))
     
     # 注册蓝图

@@ -232,7 +232,9 @@ class ConfigLoader:
             db_path = sqlite_config.get('path', 'data/xiuxing.db')
             
             # 确保目录存在
-            os.makedirs(os.path.dirname(db_path), exist_ok=True)
+            dir_path = os.path.dirname(db_path)
+            if dir_path:  # 只有当有目录时才创建
+                os.makedirs(dir_path, exist_ok=True)
             
             return f'sqlite:///{db_path}'
         

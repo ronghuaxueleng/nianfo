@@ -5,8 +5,9 @@
 
 import os
 import sys
-import json
+
 from app import create_app
+
 
 def print_config_info(app):
     """打印配置信息"""
@@ -43,13 +44,13 @@ def main():
         # 初始化数据库
         with app.app_context():
             from database import db
+            from models import AdminUser
             
             # 创建表
             db.create_all()
             print("数据库表创建完成")
             
             # 创建默认管理员账户
-            from models.user import AdminUser
             if not AdminUser.query.filter_by(username='admin').first():
                 admin = AdminUser(
                     username='admin',
@@ -59,13 +60,6 @@ def main():
                 db.session.add(admin)
                 db.session.commit()
                 print("创建默认管理员账户: admin / admin123")
-            
-            # 创建内置数据
-            from models.chanting import Chanting
-            from models.dedication_template import DedicationTemplate
-            Chanting.create_built_in_chantings()
-            DedicationTemplate.create_built_in_templates()
-            print("初始化内置数据完成")
         
         # 打印配置信息
         print_config_info(app)
