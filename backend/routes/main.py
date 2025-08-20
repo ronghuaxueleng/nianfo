@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, jsonify
+from flask import Blueprint, render_template, jsonify, redirect, url_for
 from flask_login import login_required
 from sqlalchemy import func
 from models.user import User
@@ -11,8 +11,8 @@ main_bp = Blueprint('main', __name__)
 
 @main_bp.route('/')
 def index():
-    """首页"""
-    return render_template('index.html')
+    """首页 - 重定向到dashboard"""
+    return redirect(url_for('main.dashboard'))
 
 @main_bp.route('/dashboard')
 @login_required

@@ -1,6 +1,6 @@
 {
   "database": {
-    "type": "sqlite",
+    "type": "mysql",
     "sqlite": {
       "path": "xiuxing.db"
     },

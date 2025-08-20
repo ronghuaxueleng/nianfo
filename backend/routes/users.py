@@ -256,7 +256,8 @@ def stats():
                              monthly_new=monthly_new,
                              daily_new=daily_new,
                              trends=trends,
-                             avatar_types=avatar_types)
+                             avatar_types=avatar_types,
+                             now=datetime.now())
     
     except Exception as e:
         logging.error(f"获取用户统计失败: {str(e)}")

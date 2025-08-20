@@ -25,13 +25,22 @@ class DatabaseMonitor:
             engine = db.engine
             pool = engine.pool
             
-            return {
+            # 构建基本状态信息
+            status = {
                 'pool_size': pool.size(),
                 'checked_in': pool.checkedin(),
                 'checked_out': pool.checkedout(),
-                'overflow': pool.overflow(),
-                'invalid': pool.invalid()
+                'overflow': pool.overflow()
             }
+            
+            # 尝试获取invalid状态，如果方法不存在则跳过
+            try:
+                status['invalid'] = pool.invalid()
+            except AttributeError:
+                # 较新版本的SQLAlchemy可能没有invalid()方法
+                status['invalid'] = 'N/A'
+            
+            return status
         except Exception as e:
             logger.error(f"获取连接池状态失败: {e}")
             return None

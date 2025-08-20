@@ -88,6 +88,10 @@
                         <i class="fas fa-user-circle"></i> {{ current_user.username }}
                     </a>
                     <div class="dropdown-menu">
+                        <a class="dropdown-item" href="{{ url_for('auth.profile') }}">
+                            <i class="fas fa-user-circle"></i> 个人中心
+                        </a>
+                        <div class="dropdown-divider"></div>
                         <a class="dropdown-item" href="{{ url_for('auth.logout') }}">
                             <i class="fas fa-sign-out-alt"></i> 退出登录
                         </a>
@@ -135,7 +139,7 @@
                         
                         <!-- 同步管理菜单 -->
                         <li class="nav-item">
-                            <a class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('sync_management.') }}" href="#" data-toggle="collapse" data-target="#syncSubmenu" aria-expanded="false">
+                            <a class="nav-link" href="#" data-toggle="collapse" data-target="#syncSubmenu" aria-expanded="false">
                                 <i class="fas fa-sync-alt"></i> 同步管理 <i class="fas fa-caret-down float-right"></i>
                             </a>
                             <div class="collapse {{ 'show' if request.endpoint and request.endpoint.startswith('sync_management.') }}" id="syncSubmenu">
