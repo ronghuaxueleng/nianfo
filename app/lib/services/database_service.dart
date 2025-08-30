@@ -6,6 +6,8 @@ import '../models/chanting.dart';
 import '../models/chanting_record.dart';
 import '../models/dedication_template.dart';
 import '../models/daily_stats.dart';
+import '../models/chapter.dart';
+import '../models/reading_progress.dart';
 
 class DatabaseService {
   static final DatabaseService instance = DatabaseService._init();
@@ -25,7 +27,7 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 8,
+      version: 10,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -105,9 +107,46 @@ class DatabaseService {
       )
     ''');
 
+    // 创建章节表
+    await db.execute('''
+      CREATE TABLE chapters (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        chanting_id INTEGER NOT NULL,
+        chapter_number INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        pronunciation TEXT,
+        is_deleted INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT,
+        FOREIGN KEY (chanting_id) REFERENCES chantings (id) ON DELETE CASCADE
+      )
+    ''');
+
+    // 创建阅读进度表
+    await db.execute('''
+      CREATE TABLE reading_progress (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        chanting_id INTEGER NOT NULL,
+        chapter_id INTEGER,
+        is_completed INTEGER NOT NULL DEFAULT 0,
+        last_read_at TEXT NOT NULL,
+        reading_position INTEGER NOT NULL DEFAULT 0,
+        notes TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT,
+        UNIQUE(user_id, chanting_id, chapter_id),
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+        FOREIGN KEY (chanting_id) REFERENCES chantings (id) ON DELETE CASCADE,
+        FOREIGN KEY (chapter_id) REFERENCES chapters (id) ON DELETE CASCADE
+      )
+    ''');
+
     // 初始化内置模板和内置经文
     await _initializeBuiltInTemplates(db);
     await _initializeBuiltInChantings(db);
+    await _initializeBuiltInChapters(db);
   }
 
   Future _upgradeDB(Database db, int oldVersion, int newVersion) async {
@@ -201,6 +240,49 @@ class DatabaseService {
         ALTER TABLE users ADD COLUMN nickname TEXT
       ''');
     }
+    
+    if (oldVersion < 9) {
+      // 创建章节表
+      await db.execute('''
+        CREATE TABLE chapters (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          chanting_id INTEGER NOT NULL,
+          chapter_number INTEGER NOT NULL,
+          title TEXT NOT NULL,
+          content TEXT NOT NULL,
+          pronunciation TEXT,
+          is_deleted INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL,
+          updated_at TEXT,
+          FOREIGN KEY (chanting_id) REFERENCES chantings (id) ON DELETE CASCADE
+        )
+      ''');
+    }
+    
+    if (oldVersion < 10) {
+      // 创建阅读进度表
+      await db.execute('''
+        CREATE TABLE reading_progress (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          chanting_id INTEGER NOT NULL,
+          chapter_id INTEGER,
+          is_completed INTEGER NOT NULL DEFAULT 0,
+          last_read_at TEXT NOT NULL,
+          reading_position INTEGER NOT NULL DEFAULT 0,
+          notes TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT,
+          UNIQUE(user_id, chanting_id, chapter_id),
+          FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+          FOREIGN KEY (chanting_id) REFERENCES chantings (id) ON DELETE CASCADE,
+          FOREIGN KEY (chapter_id) REFERENCES chapters (id) ON DELETE CASCADE
+        )
+      ''');
+      
+      // 初始化内置章节
+      await _initializeBuiltInChapters(db);
+    }
   }
 
   Future<void> _initializeBuiltInTemplates(Database db) async {
@@ -214,6 +296,48 @@ class DatabaseService {
     final chantings = BuiltInChantings.defaultChantings;
     for (final chanting in chantings) {
       await db.insert('chantings', chanting.toMap());
+    }
+  }
+
+  Future<void> _initializeBuiltInChapters(Database db) async {
+    // 获取地藏经的ID
+    final chantingResult = await db.query(
+      'chantings',
+      where: 'title = ? AND is_built_in = 1',
+      whereArgs: ['地藏菩萨本愿经（节选）'],
+    );
+    
+    if (chantingResult.isNotEmpty) {
+      final chantingId = chantingResult.first['id'] as int;
+      
+      final chapters = [
+        Chapter(
+          chantingId: chantingId,
+          chapterNumber: 1,
+          title: '序分',
+          content: '''南无本师释迦牟尼佛！
+南无大愿地藏王菩萨！
+
+尔时世尊举身放大光明，遍照百千万亿恒河沙等诸佛世界。出大音声，普告诸佛世界一切诸菩萨摩诃萨，及天龙八部、人非人等：听吾今日称扬赞叹地藏菩萨摩诃萨，于十方世界，现大不可思议威神慈悲之力，救护一切罪苦众生。''',
+          pronunciation: '''nán wú běn shī shì jiā móu ní fó ！
+nán wú dà yuàn dì zàng wáng pú sà ！
+
+ěr shí shì zūn jǔ shēn fàng dà guāng míng ， biàn zhào bǎi qiān wàn yì héng hé shā děng zhū fó shì jiè 。 chū dà yīn shēng ， pǔ gào zhū fó shì jiè yī qiè zhū pú sà mó hē sà ， jí tiān lóng bā bù 、 rén fēi rén děng ： tīng wú jīn rì chēng yáng zàn tàn dì zàng pú sà mó hē sà ， yú shí fāng shì jiè ， xiàn dà bù kě sī yì wēi shén cí bēi zhī lì ， jiù hù yī qiè zuì kǔ zhòng shēng 。''',
+          createdAt: DateTime.now(),
+        ),
+        Chapter(
+          chantingId: chantingId,
+          chapterNumber: 2,
+          title: '赞叹地藏菩萨',
+          content: '''地藏！地藏！汝之神力不可思议，汝之慈悲不可思议，汝之智慧不可思议，汝之辩才不可思议！正使十方诸佛，赞叹宣说汝之不思议事，千万劫中，不能得尽。''',
+          pronunciation: '''dì zàng ！ dì zàng ！ rǔ zhī shén lì bù kě sī yì ， rǔ zhī cí bēi bù kě sī yì ， rǔ zhī zhì huì bù kě sī yì ， rǔ zhī biàn cái bù kě sī yì ！ zhèng shǐ shí fāng zhū fó ， zàn tàn xuān shuō rǔ zhī bù sī yì shì ， qiān wàn jié zhōng ， bù néng dé jìn 。''',
+          createdAt: DateTime.now(),
+        ),
+      ];
+      
+      for (final chapter in chapters) {
+        await db.insert('chapters', chapter.toMap());
+      }
     }
   }
 
@@ -588,6 +712,216 @@ class DatabaseService {
       orderBy: 'date DESC',
     );
     return maps.map((map) => DailyStats.fromMap(map)).toList();
+  }
+
+  // Chapter operations
+  Future<Chapter> createChapter(Chapter chapter) async {
+    final db = await instance.database;
+    final id = await db.insert('chapters', chapter.toMap());
+    return chapter.copyWith(id: id);
+  }
+
+  Future<List<Chapter>> getChaptersByChantingId(int chantingId) async {
+    final db = await instance.database;
+    final maps = await db.query(
+      'chapters',
+      where: 'chanting_id = ? AND is_deleted = 0',
+      whereArgs: [chantingId],
+      orderBy: 'chapter_number ASC',
+    );
+    return maps.map((map) => Chapter.fromMap(map)).toList();
+  }
+
+  Future<Chapter?> getChapter(int chapterId) async {
+    final db = await instance.database;
+    final maps = await db.query(
+      'chapters',
+      where: 'id = ? AND is_deleted = 0',
+      whereArgs: [chapterId],
+    );
+    
+    if (maps.isNotEmpty) {
+      return Chapter.fromMap(maps.first);
+    }
+    return null;
+  }
+
+  Future<void> updateChapter(Chapter chapter) async {
+    final db = await instance.database;
+    await db.update(
+      'chapters',
+      chapter.toMap(),
+      where: 'id = ?',
+      whereArgs: [chapter.id],
+    );
+  }
+
+  Future<void> deleteChapter(int chapterId) async {
+    final db = await instance.database;
+    // 逻辑删除
+    await db.update(
+      'chapters',
+      {
+        'is_deleted': 1,
+        'updated_at': DateTime.now().toIso8601String(),
+      },
+      where: 'id = ?',
+      whereArgs: [chapterId],
+    );
+  }
+
+  // Reading Progress operations
+  Future<ReadingProgress> createReadingProgress(ReadingProgress progress) async {
+    final db = await instance.database;
+    final id = await db.insert('reading_progress', progress.toMap());
+    return progress.copyWith(id: id);
+  }
+
+  Future<ReadingProgress?> getOrCreateReadingProgress(int chantingId, int? chapterId, {int? userId}) async {
+    final db = await instance.database;
+    
+    // 如果没有传用户ID，使用默认用户ID 1（假设存在）
+    final actualUserId = userId ?? 1;
+    
+    // 尝试获取现有进度
+    final maps = await db.query(
+      'reading_progress',
+      where: 'user_id = ? AND chanting_id = ? AND chapter_id ${chapterId != null ? '= ?' : 'IS NULL'}',
+      whereArgs: chapterId != null 
+        ? [actualUserId, chantingId, chapterId] 
+        : [actualUserId, chantingId],
+    );
+    
+    if (maps.isNotEmpty) {
+      return ReadingProgress.fromMap(maps.first);
+    }
+    
+    // 创建新的进度记录
+    final newProgress = ReadingProgress(
+      userId: actualUserId,
+      chantingId: chantingId,
+      chapterId: chapterId,
+      lastReadAt: DateTime.now(),
+      createdAt: DateTime.now(),
+    );
+    
+    final id = await db.insert('reading_progress', newProgress.toMap());
+    return newProgress.copyWith(id: id);
+  }
+
+  Future<List<ReadingProgress>> getReadingProgress(int chantingId, {int? userId}) async {
+    final db = await instance.database;
+    
+    // 如果没有传用户ID，使用默认用户ID 1
+    final actualUserId = userId ?? 1;
+    
+    final maps = await db.query(
+      'reading_progress',
+      where: 'user_id = ? AND chanting_id = ?',
+      whereArgs: [actualUserId, chantingId],
+      orderBy: 'chapter_id ASC NULLS FIRST',
+    );
+    
+    return maps.map((map) => ReadingProgress.fromMap(map)).toList();
+  }
+
+  Future<ReadingProgress> updateReadingProgress(
+    int chantingId,
+    int? chapterId, {
+    int? userId,
+    bool? isCompleted,
+    int? readingPosition,
+    String? notes,
+  }) async {
+    final db = await instance.database;
+    
+    // 如果没有传用户ID，使用默认用户ID 1
+    final actualUserId = userId ?? 1;
+    
+    // 获取现有进度记录
+    final existing = await getOrCreateReadingProgress(chantingId, chapterId, userId: actualUserId);
+    
+    if (existing != null) {
+      final updatedProgress = existing.copyWith(
+        isCompleted: isCompleted ?? existing.isCompleted,
+        readingPosition: readingPosition ?? existing.readingPosition,
+        notes: notes ?? existing.notes,
+        lastReadAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+      
+      await db.update(
+        'reading_progress',
+        updatedProgress.toMap(),
+        where: 'id = ?',
+        whereArgs: [updatedProgress.id],
+      );
+      
+      return updatedProgress;
+    }
+    
+    throw Exception('Failed to update reading progress');
+  }
+
+  Future<ReadingProgressSummary?> getReadingProgressSummary(int chantingId, {int? userId}) async {
+    final db = await instance.database;
+    
+    // 获取经文信息
+    final chantingMaps = await db.query(
+      'chantings',
+      where: 'id = ?',
+      whereArgs: [chantingId],
+    );
+    
+    if (chantingMaps.isEmpty) return null;
+    
+    final chantingTitle = chantingMaps.first['title'] as String;
+    
+    // 获取总章节数
+    final totalChaptersResult = await db.rawQuery(
+      'SELECT COUNT(*) as count FROM chapters WHERE chanting_id = ? AND is_deleted = 0',
+      [chantingId],
+    );
+    final totalChapters = totalChaptersResult.first['count'] as int;
+    
+    if (totalChapters == 0) {
+      return ReadingProgressSummary(
+        chantingId: chantingId,
+        chantingTitle: chantingTitle,
+        totalChapters: 0,
+        completedChapters: 0,
+        progressPercentage: 0,
+      );
+    }
+    
+    // 如果没有传用户ID，使用默认用户ID 1
+    final actualUserId = userId ?? 1;
+    
+    // 获取已完成章节数
+    final completedResult = await db.rawQuery(
+      'SELECT COUNT(*) as count FROM reading_progress WHERE user_id = ? AND chanting_id = ? AND chapter_id IS NOT NULL AND is_completed = 1',
+      [actualUserId, chantingId],
+    );
+    final completedChapters = completedResult.first['count'] as int;
+    
+    final progressPercentage = (completedChapters / totalChapters) * 100;
+    
+    return ReadingProgressSummary(
+      chantingId: chantingId,
+      chantingTitle: chantingTitle,
+      totalChapters: totalChapters,
+      completedChapters: completedChapters,
+      progressPercentage: progressPercentage,
+    );
+  }
+
+  Future<void> deleteReadingProgress(int progressId) async {
+    final db = await instance.database;
+    await db.delete(
+      'reading_progress',
+      where: 'id = ?',
+      whereArgs: [progressId],
+    );
   }
 
   Future close() async {

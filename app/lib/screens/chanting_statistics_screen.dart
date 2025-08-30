@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/chanting.dart';
 import '../models/daily_stats.dart';
+import '../models/reading_progress.dart';
+import '../models/chapter.dart';
 import '../services/database_service.dart';
 
 class ChantingStatisticsScreen extends StatefulWidget {
@@ -23,6 +25,11 @@ class _ChantingStatisticsScreenState extends State<ChantingStatisticsScreen> {
   double _averagePerDay = 0.0;
   int _maxDayCount = 0;
   String _maxDayDate = '';
+  
+  // 阅读进度相关
+  ReadingProgressSummary? _progressSummary;
+  List<Chapter> _chapters = [];
+  List<ReadingProgress> _readingProgress = [];
 
   @override
   void initState() {
@@ -37,6 +44,7 @@ class _ChantingStatisticsScreenState extends State<ChantingStatisticsScreen> {
 
     try {
       if (widget.chanting.id != null) {
+        // 加载传统统计数据
         final stats = await DatabaseService.instance.getChantingStatistics(widget.chanting.id!);
         
         // 计算统计数据
@@ -52,6 +60,20 @@ class _ChantingStatisticsScreenState extends State<ChantingStatisticsScreen> {
           }
         }
         
+        // 加载阅读进度数据
+        ReadingProgressSummary? progressSummary;
+        List<Chapter> chapters = [];
+        List<ReadingProgress> readingProgress = [];
+        
+        try {
+          progressSummary = await DatabaseService.instance.getReadingProgressSummary(widget.chanting.id!);
+          chapters = await DatabaseService.instance.getChaptersByChantingId(widget.chanting.id!);
+          readingProgress = await DatabaseService.instance.getReadingProgress(widget.chanting.id!);
+        } catch (e) {
+          // 阅读进度数据加载失败，继续显示其他统计信息
+          print('阅读进度数据加载失败: $e');
+        }
+        
         setState(() {
           _stats = stats;
           _totalCount = totalCount;
@@ -59,6 +81,11 @@ class _ChantingStatisticsScreenState extends State<ChantingStatisticsScreen> {
           _averagePerDay = _totalDays > 0 ? totalCount / _totalDays : 0.0;
           _maxDayCount = maxCount;
           _maxDayDate = maxDate;
+          
+          _progressSummary = progressSummary;
+          _chapters = chapters;
+          _readingProgress = readingProgress;
+          
           _isLoading = false;
         });
       }
@@ -222,6 +249,12 @@ class _ChantingStatisticsScreenState extends State<ChantingStatisticsScreen> {
                   ),
 
                   const SizedBox(height: 16),
+
+                  // 阅读进度卡片（仅对有章节的经文显示）
+                  if (_chapters.isNotEmpty) ...[
+                    _buildReadingProgressCard(),
+                    const SizedBox(height: 16),
+                  ],
 
                   // 详细记录卡片
                   Card(
@@ -389,6 +422,247 @@ class _ChantingStatisticsScreenState extends State<ChantingStatisticsScreen> {
         return color;
       default:
         return color;
+    }
+  }
+
+  Widget _buildReadingProgressCard() {
+    final summary = _progressSummary;
+    
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '📖 阅读进度',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            
+            if (summary != null) ...[
+              // 整体进度显示
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.blue.shade50, Colors.green.shade50],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '整体进度',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.blue.shade700,
+                          ),
+                        ),
+                        Text(
+                          '${summary.progressPercentage.toStringAsFixed(1)}%',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    LinearProgressIndicator(
+                      value: summary.progressPercentage / 100,
+                      backgroundColor: Colors.grey.shade300,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        summary.progressPercentage > 80 
+                          ? Colors.green 
+                          : summary.progressPercentage > 50 
+                            ? Colors.orange 
+                            : Colors.red,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '已完成 ${summary.completedChapters} / ${summary.totalChapters} 章',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              const SizedBox(height: 16),
+              
+              // 章节详情
+              if (_chapters.isNotEmpty) ...[
+                Text(
+                  '章节详情',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade800,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _chapters.length,
+                  itemBuilder: (context, index) {
+                    final chapter = _chapters[index];
+                    final progress = _readingProgress.firstWhere(
+                      (p) => p.chapterId == chapter.id,
+                      orElse: () => ReadingProgress(
+                        userId: 1,
+                        chantingId: widget.chanting.id!,
+                        chapterId: chapter.id,
+                        lastReadAt: DateTime.now(),
+                        createdAt: DateTime.now(),
+                      ),
+                    );
+                    
+                    final isCompleted = progress.isCompleted;
+                    final hasProgress = _readingProgress.any((p) => p.chapterId == chapter.id);
+                    
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isCompleted 
+                          ? Colors.green.shade50 
+                          : hasProgress 
+                            ? Colors.blue.shade50 
+                            : Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isCompleted 
+                            ? Colors.green.shade200 
+                            : hasProgress 
+                              ? Colors.blue.shade200 
+                              : Colors.grey.shade200,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 24,
+                            height: 24,
+                            decoration: BoxDecoration(
+                              color: isCompleted 
+                                ? Colors.green.shade600 
+                                : hasProgress 
+                                  ? Colors.blue.shade600 
+                                  : Colors.grey.shade400,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Center(
+                              child: isCompleted 
+                                ? const Icon(Icons.check, color: Colors.white, size: 16)
+                                : hasProgress 
+                                  ? Icon(Icons.bookmark, color: Colors.white, size: 16)
+                                  : Text(
+                                      '${chapter.chapterNumber}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  chapter.title,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    color: isCompleted ? Colors.green.shade800 : Colors.black87,
+                                  ),
+                                ),
+                                if (hasProgress && progress.lastReadAt != null) ...[
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '最后阅读: ${_formatLastReadTime(progress.lastReadAt)}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          if (progress.notes?.isNotEmpty == true)
+                            Icon(
+                              Icons.note,
+                              size: 16,
+                              color: Colors.orange.shade600,
+                            ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ] else ...[
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(32),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.book_outlined,
+                        size: 48,
+                        color: Colors.grey,
+                      ),
+                      SizedBox(height: 16),
+                      Text(
+                        '还没有阅读进度记录',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatLastReadTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+    
+    if (difference.inMinutes < 1) {
+      return '刚刚';
+    } else if (difference.inHours < 1) {
+      return '${difference.inMinutes}分钟前';
+    } else if (difference.inDays < 1) {
+      return '${difference.inHours}小时前';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays}天前';
+    } else {
+      return '${dateTime.month}月${dateTime.day}日';
     }
   }
 }

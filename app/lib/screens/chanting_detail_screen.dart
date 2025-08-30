@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/chanting.dart';
 import '../services/database_service.dart';
+import 'chapter_selection_screen.dart';
 
 class ChantingDetailScreen extends StatefulWidget {
   final Chanting chanting;
@@ -20,6 +21,7 @@ class _ChantingDetailScreenState extends State<ChantingDetailScreen> {
   int _todayCount = 0;
   bool _isLoading = true;
   bool _isContentLoading = true;
+  bool _hasChapters = false;
   double _fontSize = 18.0; // 默认字体大小
   double _pronunciationFontSize = 15.0; // 默认注音字体大小
 
@@ -28,6 +30,7 @@ class _ChantingDetailScreenState extends State<ChantingDetailScreen> {
     super.initState();
     _loadTodayCount();
     _loadContent();
+    _checkChapters();
   }
 
   Future<void> _loadContent() async {
@@ -49,6 +52,22 @@ class _ChantingDetailScreenState extends State<ChantingDetailScreen> {
       setState(() {
         _isContentLoading = false;
       });
+    }
+  }
+
+  Future<void> _checkChapters() async {
+    if (widget.chanting.id != null && widget.chanting.type == ChantingType.sutra) {
+      try {
+        final chapters = await DatabaseService.instance.getChaptersByChantingId(widget.chanting.id!);
+        setState(() {
+          _hasChapters = chapters.isNotEmpty;
+        });
+      } catch (e) {
+        // 如果加载失败，假设没有章节
+        setState(() {
+          _hasChapters = false;
+        });
+      }
     }
   }
 
@@ -176,6 +195,19 @@ class _ChantingDetailScreenState extends State<ChantingDetailScreen> {
             icon: const Icon(Icons.text_fields),
             tooltip: '调整字体',
           ),
+          if (_hasChapters)
+            IconButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ChapterSelectionScreen(chanting: widget.chanting),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.list),
+              tooltip: '选择章节',
+            ),
           if (widget.showChantingButton && widget.chanting.id != null)
             IconButton(
               onPressed: _incrementCount,
@@ -186,6 +218,8 @@ class _ChantingDetailScreenState extends State<ChantingDetailScreen> {
       ),
       body: Column(
         children: [
+          // 章节信息卡片
+          if (_hasChapters) _buildChapterInfoCard(),
 
           // 可滚动的内容区域
           Expanded(
@@ -413,6 +447,99 @@ class _ChantingDetailScreenState extends State<ChantingDetailScreen> {
 
   String _formatDate(DateTime date) {
     return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  }
+
+  Widget _buildChapterInfoCard() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Card(
+        elevation: 2,
+        child: InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ChapterSelectionScreen(chanting: widget.chanting),
+              ),
+            );
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              gradient: LinearGradient(
+                colors: [Colors.purple.shade50, Colors.blue.shade50],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.purple.shade100,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Icon(
+                    Icons.menu_book,
+                    color: Colors.purple.shade600,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '此经文有章节分割',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        '点击选择章节阅读，追踪学习进度',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.black54,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.purple.shade600,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.list, size: 14, color: Colors.white),
+                      SizedBox(width: 4),
+                      Text(
+                        '选择章节',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
 }
