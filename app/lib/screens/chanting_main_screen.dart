@@ -123,12 +123,24 @@ class _ChantingMainScreenState extends State<ChantingMainScreen> {
                     
                     // 修行记录
                     if (_chantingRecords.isNotEmpty) ...[
-                      Text(
-                        '我的修行记录',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            '我的修行记录',
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            '← 滑动删除',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 12),
                       _buildChantingRecordsList(),
@@ -451,57 +463,95 @@ class _ChantingMainScreenState extends State<ChantingMainScreen> {
             ),
           );
           
-          return ListTile(
-            leading: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: chanting.type == ChantingType.buddhaNam 
-                    ? Colors.blue.shade100 
-                    : Colors.green.shade100,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Icon(
-                chanting.type == ChantingType.buddhaNam 
-                    ? Icons.self_improvement 
-                    : Icons.book,
-                color: chanting.type == ChantingType.buddhaNam 
-                    ? Colors.blue.shade600 
-                    : Colors.green.shade600,
-                size: 20,
+          return Dismissible(
+            key: Key('record_${record.record.id}'),
+            direction: DismissDirection.endToStart,
+            background: Container(
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.only(right: 20),
+              color: Colors.red,
+              child: const Icon(
+                Icons.delete,
+                color: Colors.white,
+                size: 24,
               ),
             ),
-            title: Text(
-              chanting.title,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            subtitle: Text(
-              chanting.type == ChantingType.buddhaNam ? '佛号' : '经文',
-            ),
-            trailing: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade600,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Text(
-                '今日 ${todayStat.count} 次',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ChantingStatisticsScreen(chanting: chanting),
-                ),
+            confirmDismiss: (direction) async {
+              return await showDialog<bool>(
+                context: context,
+                builder: (BuildContext context) {
+                  return AlertDialog(
+                    title: const Text('确认删除'),
+                    content: Text('确定要从修行记录中移除 "${chanting.title}" 吗？\n\n注意：这将删除所有相关的修行统计数据。'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        child: const Text('取消'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(true),
+                        child: const Text('删除', style: TextStyle(color: Colors.red)),
+                      ),
+                    ],
+                  );
+                },
               );
             },
+            onDismissed: (direction) async {
+              await _deleteChantingRecord(record.record.id!);
+            },
+            child: ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: chanting.type == ChantingType.buddhaNam 
+                      ? Colors.blue.shade100 
+                      : Colors.green.shade100,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Icon(
+                  chanting.type == ChantingType.buddhaNam 
+                      ? Icons.self_improvement 
+                      : Icons.book,
+                  color: chanting.type == ChantingType.buddhaNam 
+                      ? Colors.blue.shade600 
+                      : Colors.green.shade600,
+                  size: 20,
+                ),
+              ),
+              title: Text(
+                chanting.title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              subtitle: Text(
+                chanting.type == ChantingType.buddhaNam ? '佛号' : '经文',
+              ),
+              trailing: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade600,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  '今日 ${todayStat.count} 次',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ChantingStatisticsScreen(chanting: chanting),
+                  ),
+                );
+              },
+            ),
           );
         },
       ),
@@ -539,6 +589,31 @@ class _ChantingMainScreenState extends State<ChantingMainScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _deleteChantingRecord(int recordId) async {
+    try {
+      await DatabaseService.instance.deleteChantingRecord(recordId);
+      await _loadStatistics(); // 重新加载数据
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('已从修行记录中删除'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('删除失败: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _showAddChantingDialog() {
