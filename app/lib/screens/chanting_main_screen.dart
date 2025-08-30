@@ -22,6 +22,7 @@ class _ChantingMainScreenState extends State<ChantingMainScreen> {
   int _todaySutraCount = 0;
   List<DailyStats> _todayStats = [];
   List<ChantingRecordWithDetails> _chantingRecords = [];
+  Map<int, int> _totalCounts = {}; // 存储每个项目的总次数
 
   @override
   void initState() {
@@ -56,6 +57,23 @@ class _ChantingMainScreenState extends State<ChantingMainScreen> {
         }
       }
 
+      // 计算每个修行记录的总次数
+      Map<int, int> totalCounts = {};
+      for (final record in chantingRecords) {
+        if (record.chanting.id != null) {
+          try {
+            final allStats = await DatabaseService.instance.getChantingStatistics(record.chanting.id!);
+            int totalCount = 0;
+            for (final stat in allStats) {
+              totalCount += stat.count;
+            }
+            totalCounts[record.chanting.id!] = totalCount;
+          } catch (e) {
+            totalCounts[record.chanting.id!] = 0;
+          }
+        }
+      }
+
       setState(() {
         _totalBuddhaNames = buddhaNames.length;
         _totalSutras = sutras.length;
@@ -63,6 +81,7 @@ class _ChantingMainScreenState extends State<ChantingMainScreen> {
         _todaySutraCount = todaySutraCount;
         _todayStats = todayStats;
         _chantingRecords = chantingRecords;
+        _totalCounts = totalCounts;
         _isLoading = false;
       });
     } catch (e) {
@@ -528,20 +547,42 @@ class _ChantingMainScreenState extends State<ChantingMainScreen> {
               subtitle: Text(
                 chanting.type == ChantingType.buddhaNam ? '佛号' : '经文',
               ),
-              trailing: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade600,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text(
-                  '今日 ${todayStat.count} 次',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
+              trailing: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.purple.shade600,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '总计 ${_totalCounts[chanting.id] ?? 0}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade600,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '今日 ${todayStat.count}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               onTap: () {
                 Navigator.push(
