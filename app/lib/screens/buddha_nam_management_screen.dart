@@ -341,17 +341,7 @@ class _BuddhaNamManagementScreenState extends State<BuddhaNamManagementScreen> {
       child: Card(
         elevation: 2,
         child: InkWell(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => ChantingDetailScreen(
-                  chanting: buddhaNam,
-                  showChantingButton: isInRecords,
-                ),
-              ),
-            );
-          },
+          onTap: () => _addToRecords(buddhaNam),
           borderRadius: BorderRadius.circular(12),
           child: Padding(
             padding: const EdgeInsets.all(16),

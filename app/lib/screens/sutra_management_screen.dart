@@ -376,7 +376,7 @@ class _SutraManagementScreenState extends State<SutraManagementScreen> {
       child: Card(
         elevation: 2,
         child: InkWell(
-          onTap: () => _openSutra(sutra),
+          onTap: () => _addToRecords(sutra),
           borderRadius: BorderRadius.circular(12),
           child: Padding(
             padding: const EdgeInsets.all(16),

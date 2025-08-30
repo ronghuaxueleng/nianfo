@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/chanting.dart';
 import '../models/daily_stats.dart';
+import '../models/chanting_record.dart';
 import '../services/database_service.dart';
 import 'buddha_nam_management_screen.dart';
 import 'sutra_management_screen.dart';
@@ -20,6 +21,7 @@ class _ChantingMainScreenState extends State<ChantingMainScreen> {
   int _todayBuddhaCount = 0;
   int _todaySutraCount = 0;
   List<DailyStats> _todayStats = [];
+  List<ChantingRecordWithDetails> _chantingRecords = [];
 
   @override
   void initState() {
@@ -34,6 +36,7 @@ class _ChantingMainScreenState extends State<ChantingMainScreen> {
       final buddhaNames = await DatabaseService.instance.getChantingsByType(ChantingType.buddhaNam);
       final sutras = await DatabaseService.instance.getChantingsByType(ChantingType.sutra);
       final todayStats = await DatabaseService.instance.getAllTodayStats();
+      final chantingRecords = await DatabaseService.instance.getChantingRecordsWithDetails();
       
       int todayBuddhaCount = 0;
       int todaySutraCount = 0;
@@ -59,6 +62,7 @@ class _ChantingMainScreenState extends State<ChantingMainScreen> {
         _todayBuddhaCount = todayBuddhaCount;
         _todaySutraCount = todaySutraCount;
         _todayStats = todayStats;
+        _chantingRecords = chantingRecords;
         _isLoading = false;
       });
     } catch (e) {
@@ -99,53 +103,37 @@ class _ChantingMainScreenState extends State<ChantingMainScreen> {
                     ),
                     const SizedBox(height: 12),
                     
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildFeatureCard(
-                            '佛号管理',
-                            '管理和念诵佛号',
-                            Icons.self_improvement,
-                            Colors.blue,
-                            '$_totalBuddhaNames 个佛号',
-                            () => Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => const BuddhaNamManagementScreen()),
-                            ).then((_) => _loadStatistics()),
+                    // 添加修行项目按钮
+                    Center(
+                      child: ElevatedButton.icon(
+                        onPressed: _showAddChantingDialog,
+                        icon: const Icon(Icons.add, color: Colors.white),
+                        label: const Text('添加修行项目', style: TextStyle(color: Colors.white)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange.shade700,
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(25),
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _buildFeatureCard(
-                            '经文管理',
-                            '阅读和学习经文',
-                            Icons.book,
-                            Colors.green,
-                            '$_totalSutras 部经文',
-                            () => Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => const SutraManagementScreen()),
-                            ).then((_) => _loadStatistics()),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                     
                     const SizedBox(height: 20),
                     
-                    // 今日详细记录
-                    if (_todayStats.isNotEmpty) ...[
+                    // 修行记录
+                    if (_chantingRecords.isNotEmpty) ...[
                       Text(
-                        '今日修行详情',
+                        '我的修行记录',
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: Colors.black87,
                         ),
                       ),
                       const SizedBox(height: 12),
-                      _buildTodayDetailsList(),
+                      _buildChantingRecordsList(),
                     ] else ...[
-                      _buildEmptyTodayState(),
+                      _buildEmptyRecordsState(),
                     ],
                   ],
                 ),
@@ -439,5 +427,164 @@ class _ChantingMainScreenState extends State<ChantingMainScreen> {
     } catch (e) {
       return null;
     }
+  }
+
+  Widget _buildChantingRecordsList() {
+    return Card(
+      child: ListView.separated(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: _chantingRecords.length,
+        separatorBuilder: (context, index) => const Divider(height: 1),
+        itemBuilder: (context, index) {
+          final record = _chantingRecords[index];
+          final chanting = record.chanting;
+          
+          // 获取今日该项目的统计数据
+          final todayStat = _todayStats.firstWhere(
+            (stat) => stat.chantingId == chanting.id,
+            orElse: () => DailyStats(
+              chantingId: chanting.id!,
+              count: 0,
+              date: DateTime.now(),
+              createdAt: DateTime.now(),
+            ),
+          );
+          
+          return ListTile(
+            leading: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: chanting.type == ChantingType.buddhaNam 
+                    ? Colors.blue.shade100 
+                    : Colors.green.shade100,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Icon(
+                chanting.type == ChantingType.buddhaNam 
+                    ? Icons.self_improvement 
+                    : Icons.book,
+                color: chanting.type == ChantingType.buddhaNam 
+                    ? Colors.blue.shade600 
+                    : Colors.green.shade600,
+                size: 20,
+              ),
+            ),
+            title: Text(
+              chanting.title,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            subtitle: Text(
+              chanting.type == ChantingType.buddhaNam ? '佛号' : '经文',
+            ),
+            trailing: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade600,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Text(
+                '今日 ${todayStat.count} 次',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ChantingStatisticsScreen(chanting: chanting),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildEmptyRecordsState() {
+    return Card(
+      child: Container(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          children: [
+            Icon(
+              Icons.add_circle_outline,
+              size: 48,
+              color: Colors.grey.shade400,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              '还没有添加修行项目',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              '点击上方 "+" 按钮添加佛号或经文',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAddChantingDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('选择修行项目'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.self_improvement, color: Colors.blue),
+                title: const Text('佛号'),
+                subtitle: const Text('选择佛号添加到修行记录'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const BuddhaNamManagementScreen()),
+                  ).then((_) => _loadStatistics());
+                },
+              ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.book, color: Colors.green),
+                title: const Text('经文'),
+                subtitle: const Text('选择经文添加到修行记录'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const SutraManagementScreen()),
+                  ).then((_) => _loadStatistics());
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('取消'),
+            ),
+          ],
+        );
+      },
+    );
   }
 }
