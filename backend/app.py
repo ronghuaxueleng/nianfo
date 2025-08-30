@@ -52,6 +52,8 @@ def create_app(config_name=None):
     from routes.auth import auth_bp
     from routes.main import main_bp
     from routes.chanting import chanting_bp
+    from routes.buddha_nam import buddha_nam_bp
+    from routes.sutra import sutra_bp
     from routes.dedication import dedication_bp
     from routes.records import records_bp
     from routes.stats import stats_bp
@@ -64,6 +66,8 @@ def create_app(config_name=None):
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(main_bp)
     app.register_blueprint(chanting_bp, url_prefix='/chanting')
+    app.register_blueprint(buddha_nam_bp, url_prefix='/buddha-nam')
+    app.register_blueprint(sutra_bp, url_prefix='/sutra')
     app.register_blueprint(dedication_bp, url_prefix='/dedication')
     app.register_blueprint(records_bp, url_prefix='/records')
     app.register_blueprint(stats_bp, url_prefix='/stats')

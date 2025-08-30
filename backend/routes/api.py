@@ -8,6 +8,8 @@ from models.dedication import Dedication
 from models.chanting_record import ChantingRecord
 from models.daily_stats import DailyStats
 from models.dedication_template import DedicationTemplate
+from models.chapter import Chapter
+from models.reading_progress import ReadingProgress
 
 api_bp = Blueprint('api', __name__)
 
@@ -578,3 +580,211 @@ def get_last_updated():
         'daily_stats': last_stats.isoformat() if last_stats else None,
         'dedication_templates': last_template.isoformat() if last_template else None
     })
+
+# ================== 经文章节相关 ==================
+
+@api_bp.route('/chantings/<int:chanting_id>/chapters', methods=['GET'])
+@jwt_required()
+def get_chapters(chanting_id):
+    """获取经文的章节列表"""
+    # 验证经文是否存在
+    chanting = Chanting.query.filter_by(id=chanting_id, is_deleted=False).first()
+    if not chanting:
+        return jsonify({'error': '经文不存在'}), 404
+    
+    chapters = Chapter.get_by_chanting(chanting_id).all()
+    
+    return jsonify({
+        'chanting_id': chanting_id,
+        'chapters': [chapter.to_dict() for chapter in chapters],
+        'total_chapters': len(chapters)
+    })
+
+@api_bp.route('/chantings/<int:chanting_id>/chapters', methods=['POST'])
+@jwt_required()
+def create_chapter(chanting_id):
+    """创建经文章节"""
+    # 验证经文是否存在
+    chanting = Chanting.query.filter_by(id=chanting_id, is_deleted=False).first()
+    if not chanting:
+        return jsonify({'error': '经文不存在'}), 404
+    
+    data = request.get_json()
+    
+    required_fields = ['chapter_number', 'title', 'content']
+    for field in required_fields:
+        if not data.get(field):
+            return jsonify({'error': f'{field}不能为空'}), 400
+    
+    # 检查章节序号是否重复
+    existing_chapter = Chapter.query.filter_by(
+        chanting_id=chanting_id,
+        chapter_number=data['chapter_number'],
+        is_deleted=False
+    ).first()
+    
+    if existing_chapter:
+        return jsonify({'error': '章节序号已存在'}), 400
+    
+    chapter = Chapter(
+        chanting_id=chanting_id,
+        chapter_number=data['chapter_number'],
+        title=data['title'],
+        content=data['content'],
+        pronunciation=data.get('pronunciation'),
+        created_at=datetime.utcnow()
+    )
+    
+    db.session.add(chapter)
+    db.session.commit()
+    
+    return jsonify(chapter.to_dict()), 201
+
+@api_bp.route('/chapters/<int:chapter_id>', methods=['GET'])
+@jwt_required()
+def get_chapter(chapter_id):
+    """获取单个章节详情"""
+    chapter = Chapter.query.filter_by(id=chapter_id, is_deleted=False).first()
+    if not chapter:
+        return jsonify({'error': '章节不存在'}), 404
+    
+    return jsonify(chapter.to_dict_with_chanting())
+
+@api_bp.route('/chapters/<int:chapter_id>', methods=['PUT'])
+@jwt_required()
+def update_chapter(chapter_id):
+    """更新章节"""
+    chapter = Chapter.query.filter_by(id=chapter_id, is_deleted=False).first()
+    if not chapter:
+        return jsonify({'error': '章节不存在'}), 404
+    
+    data = request.get_json()
+    
+    if 'title' in data:
+        chapter.title = data['title']
+    if 'content' in data:
+        chapter.content = data['content']
+    if 'pronunciation' in data:
+        chapter.pronunciation = data['pronunciation']
+    if 'chapter_number' in data:
+        # 检查新的章节序号是否重复
+        existing_chapter = Chapter.query.filter(
+            Chapter.chanting_id == chapter.chanting_id,
+            Chapter.chapter_number == data['chapter_number'],
+            Chapter.id != chapter_id,
+            Chapter.is_deleted == False
+        ).first()
+        
+        if existing_chapter:
+            return jsonify({'error': '章节序号已存在'}), 400
+        
+        chapter.chapter_number = data['chapter_number']
+    
+    chapter.updated_at = datetime.utcnow()
+    db.session.commit()
+    
+    return jsonify(chapter.to_dict())
+
+@api_bp.route('/chapters/<int:chapter_id>', methods=['DELETE'])
+@jwt_required()
+def delete_chapter(chapter_id):
+    """删除章节（逻辑删除）"""
+    chapter = Chapter.query.filter_by(id=chapter_id, is_deleted=False).first()
+    if not chapter:
+        return jsonify({'error': '章节不存在'}), 404
+    
+    chapter.soft_delete()
+    return jsonify({'message': '删除成功'})
+
+# ================== 阅读进度相关 ==================
+
+@api_bp.route('/reading-progress', methods=['GET'])
+@jwt_required()
+def get_reading_progress():
+    """获取用户的阅读进度"""
+    user_id = get_jwt_identity()
+    chanting_id = request.args.get('chanting_id', type=int)
+    chapter_id = request.args.get('chapter_id', type=int)
+    
+    query = ReadingProgress.get_user_progress(user_id, chanting_id)
+    
+    if chapter_id:
+        query = query.filter_by(chapter_id=chapter_id)
+    
+    progress_list = query.all()
+    
+    return jsonify([progress.to_dict_with_details() for progress in progress_list])
+
+@api_bp.route('/reading-progress', methods=['POST'])
+@jwt_required()
+def update_reading_progress():
+    """更新阅读进度"""
+    user_id = get_jwt_identity()
+    data = request.get_json()
+    
+    if not data.get('chanting_id'):
+        return jsonify({'error': 'chanting_id不能为空'}), 400
+    
+    chanting_id = data['chanting_id']
+    chapter_id = data.get('chapter_id')
+    
+    # 验证经文是否存在
+    chanting = Chanting.query.filter_by(id=chanting_id, is_deleted=False).first()
+    if not chanting:
+        return jsonify({'error': '经文不存在'}), 404
+    
+    # 如果指定了章节，验证章节是否存在
+    if chapter_id:
+        chapter = Chapter.query.filter_by(id=chapter_id, is_deleted=False).first()
+        if not chapter:
+            return jsonify({'error': '章节不存在'}), 404
+        
+        if chapter.chanting_id != chanting_id:
+            return jsonify({'error': '章节不属于指定的经文'}), 400
+    
+    # 获取或创建进度记录
+    progress = ReadingProgress.get_or_create_progress(user_id, chanting_id, chapter_id)
+    
+    # 更新进度
+    progress.update_progress(
+        is_completed=data.get('is_completed'),
+        reading_position=data.get('reading_position'),
+        notes=data.get('notes')
+    )
+    
+    return jsonify(progress.to_dict_with_details())
+
+@api_bp.route('/reading-progress/summary/<int:chanting_id>', methods=['GET'])
+@jwt_required()
+def get_reading_progress_summary(chanting_id):
+    """获取经文的整体阅读进度摘要"""
+    user_id = get_jwt_identity()
+    
+    # 验证经文是否存在
+    chanting = Chanting.query.filter_by(id=chanting_id, is_deleted=False).first()
+    if not chanting:
+        return jsonify({'error': '经文不存在'}), 404
+    
+    # 创建一个临时的ReadingProgress实例来调用方法
+    temp_progress = ReadingProgress()
+    summary = temp_progress.get_chanting_progress_summary(user_id, chanting_id)
+    
+    return jsonify({
+        'chanting_id': chanting_id,
+        'chanting_title': chanting.title,
+        **summary
+    })
+
+@api_bp.route('/reading-progress/<int:progress_id>', methods=['DELETE'])
+@jwt_required()
+def delete_reading_progress(progress_id):
+    """删除阅读进度记录"""
+    user_id = get_jwt_identity()
+    progress = ReadingProgress.query.filter_by(id=progress_id, user_id=user_id).first()
+    if not progress:
+        return jsonify({'error': '阅读进度记录不存在'}), 404
+    
+    db.session.delete(progress)
+    db.session.commit()
+    
+    return jsonify({'message': '删除成功'})

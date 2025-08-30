@@ -112,8 +112,13 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('chanting.') }}" href="{{ url_for('chanting.index') }}">
-                                <i class="fas fa-dharmachakra"></i> 佛号经文管理
+                            <a class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('buddha_nam.') }}" href="{{ url_for('buddha_nam.index') }}">
+                                <i class="fas fa-prayer-hands"></i> 佛号管理
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('sutra.') }}" href="{{ url_for('sutra.index') }}">
+                                <i class="fas fa-book-open"></i> 经文管理
                             </a>
                         </li>
                         <li class="nav-item">
