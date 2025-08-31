@@ -83,6 +83,7 @@ class _NianfoAppState extends State<NianfoApp> with WidgetsBindingObserver {
       ],
       child: MaterialApp(
         title: '修行记录',
+        debugShowCheckedModeBanner: false,
         theme: ThemeData(
           primarySwatch: Colors.orange,
           visualDensity: VisualDensity.adaptivePlatformDensity,
