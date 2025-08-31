@@ -12,7 +12,7 @@ ENV FLASK_APP=app.py
 ENV FLASK_ENV=production
 ENV TZ=Asia/Shanghai
 ENV GIT_UPDATE_INTERVAL=3600
-ENV GIT_REPO_URL=https://gh.xxooo.cf/https://github.com/ronghuaxueleng/nianfo-backend.git
+ENV GIT_REPO_URL=https://proxy.v2gh.com/https://github.com/ronghuaxueleng/nianfo-backend.git
 ENV GIT_BRANCH=main
 
 RUN rm -rf /etc/apt/sources.list.d/*
