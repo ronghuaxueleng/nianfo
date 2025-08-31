@@ -8,8 +8,6 @@ services:
       - "${FLASK_PORT:-5566}:${FLASK_PORT:-5566}"
     volumes:
       - ./logs:/app/logs
-    env_file:
-      - .env
     environment:
       # 应用配置
       - FLASK_ENV=${FLASK_ENV:-production}
