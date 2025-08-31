@@ -338,14 +338,36 @@ class SyncService {
     try {
       dev.log('开始从服务器下载数据...', name: 'SyncService');
       
+      // 获取认证信息
+      final prefs = await SharedPreferences.getInstance();
+      final username = prefs.getString('username');
+      final password = prefs.getString('password');
+      
+      if (username == null || password == null) {
+        dev.log('缺少认证信息，无法下载数据', name: 'SyncService');
+        return false;
+      }
+      
+      // 准备请求体数据
+      final requestData = {
+        'auth': {
+          'username': username,
+          'password': password,
+        },
+      };
+
       // 尝试从每个后台地址下载数据
       for (final baseUrl in _backendUrls) {
         try {
           final url = '$baseUrl/download';
           
-          final response = await http.get(
+          final response = await http.post(
             Uri.parse(url),
-            headers: {'User-Agent': AppConfig.userAgent},
+            headers: {
+              'Content-Type': 'application/json',
+              'User-Agent': AppConfig.userAgent,
+            },
+            body: jsonEncode(requestData),
           ).timeout(
             AppConfig.connectionTimeout,
             onTimeout: () {

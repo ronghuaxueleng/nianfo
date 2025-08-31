@@ -1,7 +1,7 @@
 class AppConfig {
   // 服务器配置
-  static const String primaryServerHost = '192.168.10.11';
-  static const int serverPort = 5000;
+  static const String primaryServerHost = '192.168.10.12';
+  static const int serverPort = 5566;
   static const String serverProtocol = 'http';
   
   // 构建完整的服务器地址
