@@ -4,6 +4,7 @@ FROM ronghuaxueleng/python-nodejs
 # 设置工作目录
 WORKDIR /app
 
+ARG REBUILD=1
 # 设置环境变量
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
