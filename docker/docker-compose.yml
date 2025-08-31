@@ -1,11 +1,11 @@
 version: '3.8'
 
 services:
-  cookie-manager:
+  xiuxing-manager:
     build: .
-    container_name: cookie-manager-backend
+    container_name: xiuxing-backend
     ports:
-      - "${FLASK_PORT:-5555}:${FLASK_PORT:-5555}"
+      - "${FLASK_PORT:-5566}:${FLASK_PORT:-5566}"
     volumes:
       - ./logs:/app/logs
     env_file:
@@ -14,18 +14,18 @@ services:
       # 应用配置
       - FLASK_ENV=${FLASK_ENV:-production}
       - FLASK_HOST=${FLASK_HOST:-0.0.0.0}
-      - FLASK_PORT=${FLASK_PORT:-5555}
+      - FLASK_PORT=${FLASK_PORT:-5566}
       
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${FLASK_PORT:-5555}/"]
+      test: ["CMD", "curl", "-f", "http://localhost:${FLASK_PORT:-5566}/"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
     networks:
-      - cookie-manager-network
+      - xiuxing-network
 
 networks:
-  cookie-manager-network:
+  xiuxing-network:
     driver: bridge
